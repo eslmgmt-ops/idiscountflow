@@ -62,7 +62,7 @@ function PageLink({
 }
 
 export function DashboardHelpPage() {
-  const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Perfect Union portal — support request")}`
+  const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("idiscountflow — support request")}`
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

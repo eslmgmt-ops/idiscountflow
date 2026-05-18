@@ -4,7 +4,7 @@ import { Providers } from "@/components/providers"
 import "./globals.css"
 
 const fontSans = DM_Sans({
-  variable: "--font-pu-sans",
+  variable: "--font-idf-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 })
@@ -15,9 +15,9 @@ const fontMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Perfect Union · Discount manager",
-  description: "Partner portal for Perfect Union dispensary discounts via Treez.",
-  metadataBase: new URL("https://perfect-union.com"),
+  title: "idiscountflow · Discount manager",
+  description: "Discount management portal for Treez org-level discounts.",
+  metadataBase: new URL("https://idiscountflow.com"),
 }
 
 export default function RootLayout({

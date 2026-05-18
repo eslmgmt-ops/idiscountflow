@@ -227,7 +227,7 @@ export function DashboardShell({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   size="lg"
-                  tooltip="Perfect Union"
+                  tooltip="idiscountflow"
                   render={<Link href="/dashboard" />}
                   className="gap-3 rounded-xl border border-transparent transition-colors hover:border-primary/10 hover:bg-sidebar-accent/60"
                 >
@@ -243,7 +243,7 @@ export function DashboardShell({
                   </span>
                   <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold tracking-tight text-sidebar-foreground">
-                      Perfect Union
+                      idiscountflow
                     </span>
                     <span className="truncate text-[11px] text-sidebar-foreground/65">
                       Discount manager

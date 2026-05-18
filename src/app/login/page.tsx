@@ -61,14 +61,14 @@ export default function LoginPage() {
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.07] px-3 py-1 text-[11px] font-semibold tracking-wide text-primary uppercase">
                 <LayoutGridIcon className="size-3.5" aria-hidden />
-                Perfect Union
+                idiscountflow
               </div>
 
               <div className="flex items-center gap-4">
                 <div className="relative shrink-0 rounded-2xl border border-primary/12 bg-card p-4 shadow-sm ring-1 ring-primary/[0.06]">
                   <Image
                     src="/logo.webp"
-                    alt="Perfect Union"
+                    alt="idiscountflow"
                     width={64}
                     height={64}
                     className="size-14 object-contain md:size-16"

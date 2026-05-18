@@ -3,7 +3,7 @@ import { DashboardShell } from "@/components/dashboard-shell"
 import { SalesPromoList } from "@/components/sales-promo-list"
 
 export const metadata: Metadata = {
-  title: "Sales Promo · Perfect Union",
+  title: "Sales Promo · idiscountflow",
 }
 
 export default function SalesPromoPage() {

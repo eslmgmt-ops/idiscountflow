@@ -3,7 +3,7 @@ import { DashboardShell } from "@/components/dashboard-shell"
 import { UsersManagement } from "@/components/users-management"
 
 export const metadata: Metadata = {
-  title: "Users · Perfect Union",
+  title: "Users · idiscountflow",
 }
 
 export default function UsersPage() {

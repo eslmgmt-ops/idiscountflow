@@ -3,7 +3,7 @@ import { DashboardShell } from "@/components/dashboard-shell"
 import { DashboardPlaceholderPage } from "@/components/dashboard-placeholder-page"
 
 export const metadata: Metadata = {
-  title: "Settings · Perfect Union",
+  title: "Settings · idiscountflow",
 }
 
 export default function SettingsPage() {

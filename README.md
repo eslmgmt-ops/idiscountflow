@@ -1,8 +1,8 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Perfect Union Discount Manager
+## idiscountflow
 
-A secure portal for managing Perfect Union dispensary discounts via the Treez API.
+A secure portal for managing dispensary discounts via the Treez API.
 
 ## Setup
 
