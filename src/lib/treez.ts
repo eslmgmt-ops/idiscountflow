@@ -20,15 +20,20 @@ export type TreezEnv = {
 }
 
 export function getTreezEnv(): TreezEnv {
+  // Prefer inline PEM when present so Vercel (and any host without `.treez/` on disk)
+  // still works if `TREEZ_PRIVATE_KEY_FILE` was copied from local `.env` examples.
+  const fromEnv = process.env.TREEZ_PRIVATE_KEY?.replace(/\\n/g, "\n")?.trim()
   const fromFile = process.env.TREEZ_PRIVATE_KEY_FILE?.trim()
   let privateKeyPem: string | undefined
-  if (fromFile) {
+  if (fromEnv?.includes("BEGIN PRIVATE KEY")) {
+    privateKeyPem = fromEnv
+  } else if (fromFile) {
     const keyPath = path.isAbsolute(fromFile)
       ? fromFile
       : path.join(/* turbopackIgnore: true */ process.cwd(), fromFile)
     privateKeyPem = fs.readFileSync(keyPath, "utf8").trim()
   } else {
-    privateKeyPem = process.env.TREEZ_PRIVATE_KEY?.replace(/\\n/g, "\n")?.trim()
+    privateKeyPem = fromEnv
   }
   const certId = process.env.TREEZ_CERT_ID
   const orgId = process.env.TREEZ_ORG_ID
