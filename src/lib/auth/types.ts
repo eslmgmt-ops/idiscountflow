@@ -1,0 +1,11 @@
+export type AppRole = "master_admin" | "admin" | "manager"
+
+export type ProfileRow = {
+  id: string
+  email: string | null
+  full_name: string | null
+  role: AppRole
+  created_at: string
+  /** Treez store names; meaningful for managers (discount + assignment UI). */
+  assigned_store_names: string[]
+}
