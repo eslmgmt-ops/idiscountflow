@@ -157,15 +157,6 @@ function DiscountDashboardContent({
   }, [onRefreshingChange, refreshing])
 
   React.useEffect(() => {
-    const onTenantChanged = () => {
-      setShowSkeleton(true)
-      void runFetch(false)
-    }
-    window.addEventListener("treez-tenant-changed", onTenantChanged)
-    return () => window.removeEventListener("treez-tenant-changed", onTenantChanged)
-  }, [runFetch])
-
-  React.useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {

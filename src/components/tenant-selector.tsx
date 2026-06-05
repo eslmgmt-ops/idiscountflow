@@ -3,13 +3,12 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { getStoreVisual } from "@/lib/store-visuals"
 import { cn } from "@/lib/utils"
 import { CheckIcon, ChevronDownIcon, Loader2Icon } from "lucide-react"
@@ -99,8 +98,8 @@ export function TenantSelector({
         setOpen(false)
         return
       }
-      setSwitching(true)
       setOpen(false)
+      setSwitching(true)
       try {
         await onChange(key)
       } catch {
@@ -131,8 +130,8 @@ export function TenantSelector({
   const busy = disabled || switching
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         disabled={busy}
         render={
           <Button
@@ -148,32 +147,44 @@ export function TenantSelector({
         }
       >
         <StoreBadge tenant={selected} showChevron loading={switching} />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60" sideOffset={6}>
-        <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Switch store
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {tenants.map((tenant) => {
-          const isActive = tenant.key === activeKey
-          return (
-            <DropdownMenuItem
-              key={tenant.key}
-              disabled={busy}
-              className="gap-2.5 py-2 pr-3"
-              onClick={() => void handleSelect(tenant.key)}
-            >
-              <StoreMark tenant={tenant} size="md" />
-              <span className="min-w-0 flex-1 truncate font-medium">{tenant.label}</span>
-              {isActive ? (
-                <CheckIcon className="size-4 shrink-0 text-primary" aria-hidden />
-              ) : (
-                <span className="size-4 shrink-0" aria-hidden />
-              )}
-            </DropdownMenuItem>
-          )
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverTrigger>
+      <PopoverContent align="end" side="bottom" sideOffset={6} className="w-60 p-1.5">
+        <PopoverHeader className="px-2 pb-1 pt-0.5">
+          <PopoverTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Switch store
+          </PopoverTitle>
+        </PopoverHeader>
+        <ul className="flex flex-col gap-0.5" role="listbox" aria-label="Stores">
+          {tenants.map((tenant) => {
+            const isActive = tenant.key === activeKey
+            return (
+              <li key={tenant.key} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={isActive}
+                  disabled={busy}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm outline-none transition-colors",
+                    "hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+                    "disabled:pointer-events-none disabled:opacity-50",
+                    isActive && "bg-accent/60",
+                  )}
+                  onClick={() => void handleSelect(tenant.key)}
+                >
+                  <StoreMark tenant={tenant} size="md" />
+                  <span className="min-w-0 flex-1 truncate font-medium">{tenant.label}</span>
+                  {isActive ? (
+                    <CheckIcon className="size-4 shrink-0 text-primary" aria-hidden />
+                  ) : (
+                    <span className="size-4 shrink-0" aria-hidden />
+                  )}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
   )
 }

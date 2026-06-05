@@ -17,9 +17,18 @@ const TenantSessionContext = React.createContext<TenantSessionContextValue | nul
 
 export function TenantSessionProvider({ children }: { children: React.ReactNode }) {
   const session = useTenantSession()
-  return (
-    <TenantSessionContext.Provider value={session}>{children}</TenantSessionContext.Provider>
+  const value = React.useMemo(
+    () => session,
+    [
+      session.tenants,
+      session.tenantKey,
+      session.loading,
+      session.error,
+      session.setTenantKey,
+      session.refresh,
+    ],
   )
+  return <TenantSessionContext.Provider value={value}>{children}</TenantSessionContext.Provider>
 }
 
 export function useTenantSessionContext(): TenantSessionContextValue {

@@ -70,9 +70,15 @@ export function useTenantSession(): TenantSessionState {
         setError(data.error ?? "Could not switch store")
         return false
       }
-      setTenantKeyState(data.currentTenantKey ?? key)
+      const nextKey = data.currentTenantKey ?? key
+      setTenantKeyState(nextKey)
       setError(null)
-      window.dispatchEvent(new CustomEvent("treez-tenant-changed", { detail: { tenantKey: key } }))
+      // Let React commit the new tenant before listeners refetch or navigate.
+      queueMicrotask(() => {
+        window.dispatchEvent(
+          new CustomEvent("treez-tenant-changed", { detail: { tenantKey: nextKey } }),
+        )
+      })
       return true
     } catch {
       setError("Network error switching store")

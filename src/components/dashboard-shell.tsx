@@ -22,10 +22,7 @@ import {
 } from "@/components/ui/tooltip"
 import { DashboardKBar, DashboardKBarTrigger } from "@/components/dashboard-kbar"
 import { TenantSelector } from "@/components/tenant-selector"
-import {
-  TenantSessionProvider,
-  useTenantSessionContext,
-} from "@/components/tenant-session-provider"
+import { useTenantSessionContext } from "@/components/tenant-session-provider"
 import {
   Sidebar,
   SidebarContent,
@@ -224,22 +221,20 @@ export function DashboardShell({
   }, [collapseForBulk])
 
   return (
-    <TenantSessionProvider>
-      <DashboardShellInner
-        pathname={pathname}
-        accessProfile={accessProfile}
-        isManager={isManager}
-        discountsNavItems={discountsNavItems}
-        workspaceNavItems={workspaceNavItems}
-        mobileNavItems={mobileNavItems}
-        sidebarOpen={open}
-        onSidebarOpenChange={setOpen}
-        headerActions={headerActions}
-        sidebarFooter={sidebarFooter}
-      >
-        {children}
-      </DashboardShellInner>
-    </TenantSessionProvider>
+    <DashboardShellInner
+      pathname={pathname}
+      accessProfile={accessProfile}
+      isManager={isManager}
+      discountsNavItems={discountsNavItems}
+      workspaceNavItems={workspaceNavItems}
+      mobileNavItems={mobileNavItems}
+      sidebarOpen={open}
+      onSidebarOpenChange={setOpen}
+      headerActions={headerActions}
+      sidebarFooter={sidebarFooter}
+    >
+      {children}
+    </DashboardShellInner>
   )
 }
 
