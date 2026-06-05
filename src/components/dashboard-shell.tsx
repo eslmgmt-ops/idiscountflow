@@ -22,7 +22,10 @@ import {
 } from "@/components/ui/tooltip"
 import { DashboardKBar, DashboardKBarTrigger } from "@/components/dashboard-kbar"
 import { TenantSelector } from "@/components/tenant-selector"
-import { useTenantSession } from "@/lib/use-tenant-session"
+import {
+  TenantSessionProvider,
+  useTenantSessionContext,
+} from "@/components/tenant-session-provider"
 import {
   Sidebar,
   SidebarContent,
@@ -171,7 +174,6 @@ export function DashboardShell({
 }) {
   const pathname = usePathname() || ""
   const [accessProfile, setAccessProfile] = React.useState<ProfileRow | null>(null)
-  const tenantSession = useTenantSession()
 
   React.useEffect(() => {
     let cancelled = false
@@ -222,8 +224,62 @@ export function DashboardShell({
   }, [collapseForBulk])
 
   return (
+    <TenantSessionProvider>
+      <DashboardShellInner
+        pathname={pathname}
+        accessProfile={accessProfile}
+        isManager={isManager}
+        discountsNavItems={discountsNavItems}
+        workspaceNavItems={workspaceNavItems}
+        mobileNavItems={mobileNavItems}
+        sidebarOpen={open}
+        onSidebarOpenChange={setOpen}
+        headerActions={headerActions}
+        sidebarFooter={sidebarFooter}
+      >
+        {children}
+      </DashboardShellInner>
+    </TenantSessionProvider>
+  )
+}
+
+function DashboardShellInner({
+  children,
+  pathname,
+  accessProfile,
+  isManager,
+  discountsNavItems,
+  workspaceNavItems,
+  mobileNavItems,
+  sidebarOpen,
+  onSidebarOpenChange,
+  headerActions,
+  sidebarFooter,
+}: {
+  children: React.ReactNode
+  pathname: string
+  accessProfile: ProfileRow | null
+  isManager: boolean
+  discountsNavItems: readonly (typeof SIDEBAR_NAV)[number][]
+  workspaceNavItems: readonly (typeof MORE_NAV)[number][]
+  mobileNavItems: readonly (typeof MOBILE_NAV)[number][] | readonly (typeof MOBILE_NAV_MANAGER)[number][]
+  sidebarOpen: boolean
+  onSidebarOpenChange: (open: boolean) => void
+  headerActions?: React.ReactNode
+  sidebarFooter?: React.ReactNode
+}) {
+  const tenantSession = useTenantSessionContext()
+
+  const handleTenantChange = React.useCallback(
+    async (key: string) => {
+      await tenantSession.setTenantKey(key)
+    },
+    [tenantSession.setTenantKey],
+  )
+
+  return (
     <DashboardKBar managerMode={isManager}>
-      <SidebarProvider open={open} onOpenChange={setOpen}>
+      <SidebarProvider open={sidebarOpen} onOpenChange={onSidebarOpenChange}>
         <Sidebar collapsible="icon" variant="inset" className={SIDEBAR_SURFACE_CLASS}>
           <SidebarHeader className="border-b border-sidebar-border/80 p-3">
             <SidebarMenu>
@@ -319,7 +375,7 @@ export function DashboardShell({
                 tenants={tenantSession.tenants}
                 value={tenantSession.tenantKey}
                 disabled={tenantSession.loading}
-                onChange={(key) => void tenantSession.setTenantKey(key)}
+                onChange={handleTenantChange}
               />
               {headerActions}
               <DashboardKBarTrigger />

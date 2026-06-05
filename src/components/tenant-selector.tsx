@@ -5,15 +5,14 @@ import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { getStoreVisual } from "@/lib/store-visuals"
 import { cn } from "@/lib/utils"
-import { ChevronDownIcon, Loader2Icon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, Loader2Icon } from "lucide-react"
 
 export type TenantOption = {
   key: string
@@ -87,26 +86,30 @@ export function TenantSelector({
   const [open, setOpen] = React.useState(false)
   const [switching, setSwitching] = React.useState(false)
 
+  const activeKey = value ?? tenants[0]?.key ?? null
+
   const selected = React.useMemo(
-    () => tenants.find((t) => t.key === value) ?? tenants[0] ?? null,
-    [tenants, value],
+    () => tenants.find((t) => t.key === activeKey) ?? tenants[0] ?? null,
+    [tenants, activeKey],
   )
 
   const handleSelect = React.useCallback(
     async (key: string) => {
-      if (key === value) {
+      if (!key || key === activeKey) {
         setOpen(false)
         return
       }
       setSwitching(true)
+      setOpen(false)
       try {
         await onChange(key)
+      } catch {
+        /* parent may toast */
       } finally {
         setSwitching(false)
-        setOpen(false)
       }
     },
-    [onChange, value],
+    [onChange, activeKey],
   )
 
   if (!selected || tenants.length === 0) return null
@@ -151,22 +154,25 @@ export function TenantSelector({
           Switch store
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup
-          value={value ?? selected.key}
-          onValueChange={(key) => void handleSelect(key)}
-        >
-          {tenants.map((tenant) => (
-            <DropdownMenuRadioItem
+        {tenants.map((tenant) => {
+          const isActive = tenant.key === activeKey
+          return (
+            <DropdownMenuItem
               key={tenant.key}
-              value={tenant.key}
               disabled={busy}
-              className="gap-2.5 py-2 pr-8"
+              className="gap-2.5 py-2 pr-3"
+              onClick={() => void handleSelect(tenant.key)}
             >
               <StoreMark tenant={tenant} size="md" />
               <span className="min-w-0 flex-1 truncate font-medium">{tenant.label}</span>
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+              {isActive ? (
+                <CheckIcon className="size-4 shrink-0 text-primary" aria-hidden />
+              ) : (
+                <span className="size-4 shrink-0" aria-hidden />
+              )}
+            </DropdownMenuItem>
+          )
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { DashboardShell } from "@/components/dashboard-shell"
+import { useTenantSessionContext } from "@/components/tenant-session-provider"
 import { DiscountManagerClient } from "@/components/discount-manager-client"
 import { DiscountManagerSkeleton } from "@/components/discount-manager-skeleton"
 import { ActionTooltip } from "@/components/action-tooltip"
@@ -16,7 +17,6 @@ import {
   readDiscountCache,
   writeDiscountCache,
 } from "@/lib/discount-cache"
-import { useTenantSession } from "@/lib/use-tenant-session"
 import type { ProfileRow } from "@/lib/auth/types"
 import { cn } from "@/lib/utils"
 import { RefreshCwIcon } from "lucide-react"
@@ -56,6 +56,42 @@ async function fetchDiscountRows(): Promise<
 }
 
 export function DiscountDashboardView() {
+  const [refreshing, setRefreshing] = React.useState(false)
+  const manualRefreshRef = React.useRef<() => void>(() => {})
+
+  const sidebarFooter = (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        tooltip="Refresh discounts"
+        disabled={refreshing}
+        onClick={() => manualRefreshRef.current()}
+        className="text-sidebar-foreground/85 hover:text-sidebar-foreground"
+      >
+        <RefreshCwIcon className={cn("size-4", refreshing && "animate-spin")} aria-hidden />
+        <span>Refresh</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+
+  return (
+    <DashboardShell sidebarFooter={sidebarFooter}>
+      <DiscountDashboardContent
+        onRegisterManualRefresh={(fn) => {
+          manualRefreshRef.current = fn
+        }}
+        onRefreshingChange={setRefreshing}
+      />
+    </DashboardShell>
+  )
+}
+
+function DiscountDashboardContent({
+  onRegisterManualRefresh,
+  onRefreshingChange,
+}: {
+  onRegisterManualRefresh: (fn: () => void) => void
+  onRefreshingChange: (refreshing: boolean) => void
+}) {
   const [rows, setRows] = React.useState<Record<string, unknown>[]>([])
   const [error, setError] = React.useState<string | null>(null)
   const [status, setStatus] = React.useState<number | undefined>()
@@ -63,7 +99,7 @@ export function DiscountDashboardView() {
   const [refreshing, setRefreshing] = React.useState(false)
   const [lastFetchedAt, setLastFetchedAt] = React.useState<number | null>(null)
   const [sessionProfile, setSessionProfile] = React.useState<ProfileRow | null>(null)
-  const tenantSession = useTenantSession()
+  const tenantSession = useTenantSessionContext()
   const mounted = React.useRef(false)
   const rowsRef = React.useRef(rows)
   rowsRef.current = rows
@@ -109,6 +145,16 @@ export function DiscountDashboardView() {
       if (manual) setRefreshing(false)
     }
   }, [tenantSession.loading, tenantSession.tenantKey])
+
+  React.useEffect(() => {
+    onRegisterManualRefresh(() => {
+      void runFetch(true)
+    })
+  }, [onRegisterManualRefresh, runFetch])
+
+  React.useEffect(() => {
+    onRefreshingChange(refreshing)
+  }, [onRefreshingChange, refreshing])
 
   React.useEffect(() => {
     const onTenantChanged = () => {
@@ -204,104 +250,88 @@ export function DiscountDashboardView() {
       </p>
     ) : null
 
-  const refreshSidebar = (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        tooltip="Refresh discounts"
-        disabled={refreshing || showSkeleton}
-        onClick={() => void runFetch(true)}
-        className="text-sidebar-foreground/85 hover:text-sidebar-foreground"
-      >
-        <RefreshCwIcon className={cn("size-4", refreshing && "animate-spin")} aria-hidden />
-        <span>Refresh</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  )
-
   return (
-    <DashboardShell sidebarFooter={refreshSidebar}>
-      <div className="flex flex-1 flex-col gap-6 p-4 pt-6 lg:p-8 lg:pt-8">
-        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-              Discount manager
-            </h1>
-            {activeTenantLabel ? (
-              <p className="mt-2 max-w-2xl text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Store: </span>
-                {activeTenantLabel}
-              </p>
-            ) : null}
-            {isManager && managerStores.length > 0 ? (
-              <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Your locations: </span>
-                {managerStores.join(", ")}
-              </p>
-            ) : null}
-            {!error && !showSkeleton ? subtitle : null}
-          </div>
+    <div className="flex flex-1 flex-col gap-6 p-4 pt-6 lg:p-8 lg:pt-8">
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            Discount manager
+          </h1>
+          {activeTenantLabel ? (
+            <p className="mt-2 max-w-2xl text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Store: </span>
+              {activeTenantLabel}
+            </p>
+          ) : null}
+          {isManager && managerStores.length > 0 ? (
+            <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Your locations: </span>
+              {managerStores.join(", ")}
+            </p>
+          ) : null}
+          {!error && !showSkeleton ? subtitle : null}
         </div>
-
-        {tenantSession.error && !tenantSession.loading ? (
-          <div
-            role="status"
-            className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-foreground"
-          >
-            <p className="font-medium text-amber-900 dark:text-amber-100">Store access required</p>
-            <p className="mt-2 text-muted-foreground">{tenantSession.error}</p>
-          </div>
-        ) : managerMissingTenants ? (
-          <div
-            role="status"
-            className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-foreground"
-          >
-            <p className="font-medium text-amber-900 dark:text-amber-100">No stores assigned</p>
-            <p className="mt-2 text-muted-foreground">
-              An admin must assign at least one store to your manager account on the Users page before discounts
-              appear here.
-            </p>
-          </div>
-        ) : managerMissingStores ? (
-          <div
-            role="status"
-            className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-foreground"
-          >
-            <p className="font-medium text-amber-900 dark:text-amber-100">No store locations assigned</p>
-            <p className="mt-2 text-muted-foreground">
-              An admin must assign at least one location within your store on the Users page before discounts
-              appear here.
-            </p>
-          </div>
-        ) : error ? (
-          <div
-            role="alert"
-            className="rounded-xl border border-destructive/40 bg-destructive/5 px-5 py-4 text-sm text-destructive"
-          >
-            <p className="font-semibold">Could not load discounts{status ? ` (${status})` : ""}</p>
-            <p className="mt-2 font-mono text-xs leading-relaxed opacity-90">{error}</p>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Confirm <code className="rounded bg-muted px-1 py-0.5">TREEZ_CERT_ID</code>,{" "}
-              <code className="rounded bg-muted px-1 py-0.5">TREEZ_ORG_ID</code>, and private key in{" "}
-              <code className="rounded bg-muted px-1 py-0.5">.env.local</code>. Your certificate must allow the org-level
-              discount service endpoint.
-            </p>
-            <ActionTooltip label="Request a fresh list of discounts from Treez." side="top">
-              <Button type="button" size="sm" variant="outline" className="mt-4 gap-2" onClick={() => void runFetch(true)}>
-                <RefreshCwIcon className="size-4" />
-                Try again
-              </Button>
-            </ActionTooltip>
-          </div>
-        ) : showSkeleton ? (
-          <DiscountManagerSkeleton />
-        ) : (
-          <DiscountManagerClient
-            rows={rows}
-            managerReadOnly={isManager}
-            managerStoreAllowlist={isManager ? managerStores : null}
-          />
-        )}
       </div>
-    </DashboardShell>
+
+      {tenantSession.error && !tenantSession.loading ? (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-foreground"
+        >
+          <p className="font-medium text-amber-900 dark:text-amber-100">Store access required</p>
+          <p className="mt-2 text-muted-foreground">{tenantSession.error}</p>
+        </div>
+      ) : managerMissingTenants ? (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-foreground"
+        >
+          <p className="font-medium text-amber-900 dark:text-amber-100">No stores assigned</p>
+          <p className="mt-2 text-muted-foreground">
+            An admin must assign at least one store to your manager account on the Users page before discounts
+            appear here.
+          </p>
+        </div>
+      ) : managerMissingStores ? (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-foreground"
+        >
+          <p className="font-medium text-amber-900 dark:text-amber-100">No store locations assigned</p>
+          <p className="mt-2 text-muted-foreground">
+            An admin must assign at least one location within your store on the Users page before discounts
+            appear here.
+          </p>
+        </div>
+      ) : error ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-destructive/40 bg-destructive/5 px-5 py-4 text-sm text-destructive"
+        >
+          <p className="font-semibold">Could not load discounts{status ? ` (${status})` : ""}</p>
+          <p className="mt-2 font-mono text-xs leading-relaxed opacity-90">{error}</p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Confirm <code className="rounded bg-muted px-1 py-0.5">TREEZ_CERT_ID</code>,{" "}
+            <code className="rounded bg-muted px-1 py-0.5">TREEZ_ORG_ID</code>, and private key in{" "}
+            <code className="rounded bg-muted px-1 py-0.5">.env.local</code>. Your certificate must allow the org-level
+            discount service endpoint.
+          </p>
+          <ActionTooltip label="Request a fresh list of discounts from Treez." side="top">
+            <Button type="button" size="sm" variant="outline" className="mt-4 gap-2" onClick={() => void runFetch(true)}>
+              <RefreshCwIcon className="size-4" />
+              Try again
+            </Button>
+          </ActionTooltip>
+        </div>
+      ) : showSkeleton ? (
+        <DiscountManagerSkeleton />
+      ) : (
+        <DiscountManagerClient
+          rows={rows}
+          managerReadOnly={isManager}
+          managerStoreAllowlist={isManager ? managerStores : null}
+        />
+      )}
+    </div>
   )
 }
