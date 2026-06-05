@@ -16,7 +16,8 @@ import {
   type BulkDiscountRow,
 } from "@/lib/bulk-discount-io"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
-import { createServiceDiscount, getTreezEnv, updateServiceDiscount } from "@/lib/treez"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
+import { createServiceDiscount, updateServiceDiscount } from "@/lib/treez"
 
 const BETWEEN_TREEZ_MS = 150
 
@@ -112,7 +113,7 @@ export async function POST(
 
   let env
   try {
-    env = getTreezEnv()
+    env = resolveTreezTenantForRequest(request, actor!).env
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Treez env missing" },

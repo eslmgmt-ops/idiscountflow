@@ -18,7 +18,7 @@ export async function getProfileForUser(
   const db = client ?? createServiceRoleClient()
   const { data, error } = await db
     .from("profiles")
-    .select("id,email,full_name,role,created_at,assigned_store_names")
+    .select("id,email,full_name,role,created_at,assigned_tenant_keys,assigned_store_names")
     .eq("id", userId)
     .maybeSingle()
   if (error || !data) return null
@@ -34,7 +34,7 @@ export async function getSessionProfile(): Promise<ProfileRow | null> {
   if (!user) return null
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,email,full_name,role,created_at,assigned_store_names")
+    .select("id,email,full_name,role,created_at,assigned_tenant_keys,assigned_store_names")
     .eq("id", user.id)
     .maybeSingle()
   if (error || !data) return null
@@ -42,6 +42,10 @@ export async function getSessionProfile(): Promise<ProfileRow | null> {
 }
 
 export function normalizeProfileRow(data: Record<string, unknown>): ProfileRow {
+  const tenantKeys = data.assigned_tenant_keys
+  const assigned_tenant_keys = Array.isArray(tenantKeys)
+    ? tenantKeys.map((x) => String(x ?? "").trim().toLowerCase()).filter(Boolean)
+    : []
   const names = data.assigned_store_names
   const assigned_store_names = Array.isArray(names)
     ? names.map((x) => String(x ?? "").trim()).filter(Boolean)
@@ -53,6 +57,7 @@ export function normalizeProfileRow(data: Record<string, unknown>): ProfileRow {
       data.full_name === null || data.full_name === undefined ? null : String(data.full_name),
     role: data.role as ProfileRow["role"],
     created_at: String(data.created_at ?? ""),
+    assigned_tenant_keys,
     assigned_store_names,
   }
 }

@@ -1,10 +1,12 @@
-import { deleteServiceDiscountOrFallback, getTreezEnv } from "@/lib/treez"
+import { deleteServiceDiscountOrFallback } from "@/lib/treez"
 import { NextResponse } from "next/server"
 import { getCurrentProfile } from "@/lib/auth/profile"
 import { rejectIfManager } from "@/lib/auth/permissions"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
 
 export async function POST(request: Request) {
-  const denied = rejectIfManager(await getCurrentProfile())
+  const actor = await getCurrentProfile()
+  const denied = rejectIfManager(actor)
   if (denied) return denied
 
   try {
@@ -18,7 +20,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const env = getTreezEnv()
+    const { env } = resolveTreezTenantForRequest(request, actor!)
     const results: Array<Record<string, unknown>> = []
     const errors: Array<Record<string, unknown>> = []
 

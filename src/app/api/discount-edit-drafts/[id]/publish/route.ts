@@ -2,9 +2,10 @@ import { NextResponse } from "next/server"
 import { rejectIfManager } from "@/lib/auth/permissions"
 import { getCurrentProfile } from "@/lib/auth/profile"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
-import { formatTreezApiError, getTreezEnv, updateServiceDiscount } from "@/lib/treez"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
+import { formatTreezApiError, updateServiceDiscount } from "@/lib/treez"
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getCurrentProfile()
   const denied = rejectIfManager(actor)
   if (denied) return denied
@@ -50,7 +51,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   let env
   try {
-    env = getTreezEnv()
+    env = resolveTreezTenantForRequest(request, actor!).env
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Treez env missing" },

@@ -1,10 +1,12 @@
-import { getTreezEnv, formatTreezApiError, updateServiceDiscount } from "@/lib/treez"
+import { formatTreezApiError, updateServiceDiscount } from "@/lib/treez"
 import { NextResponse } from "next/server"
 import { getCurrentProfile } from "@/lib/auth/profile"
 import { rejectIfManager } from "@/lib/auth/permissions"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
 
 export async function PUT(request: Request) {
-  const denied = rejectIfManager(await getCurrentProfile())
+  const actor = await getCurrentProfile()
+  const denied = rejectIfManager(actor)
   if (denied) return denied
 
   try {
@@ -18,7 +20,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    const env = getTreezEnv()
+    const { env } = resolveTreezTenantForRequest(request, actor!)
     const results = []
     const errors = []
 

@@ -8,10 +8,15 @@ export type DiscountCachePayload = {
   fetchedAt: number
 }
 
-export function readDiscountCache(): DiscountCachePayload | null {
+export function discountCacheKey(tenantKey?: string | null): string {
+  if (!tenantKey) return DISCOUNT_CACHE_KEY
+  return `${DISCOUNT_CACHE_KEY}:${tenantKey}`
+}
+
+export function readDiscountCache(tenantKey?: string | null): DiscountCachePayload | null {
   if (typeof window === "undefined") return null
   try {
-    const raw = localStorage.getItem(DISCOUNT_CACHE_KEY)
+    const raw = localStorage.getItem(discountCacheKey(tenantKey))
     if (!raw) return null
     const parsed = JSON.parse(raw) as DiscountCachePayload
     if (!Array.isArray(parsed.rows) || typeof parsed.fetchedAt !== "number") return null
@@ -21,11 +26,11 @@ export function readDiscountCache(): DiscountCachePayload | null {
   }
 }
 
-export function writeDiscountCache(rows: Record<string, unknown>[]): void {
+export function writeDiscountCache(rows: Record<string, unknown>[], tenantKey?: string | null): void {
   if (typeof window === "undefined") return
   try {
     const payload: DiscountCachePayload = { rows, fetchedAt: Date.now() }
-    localStorage.setItem(DISCOUNT_CACHE_KEY, JSON.stringify(payload))
+    localStorage.setItem(discountCacheKey(tenantKey), JSON.stringify(payload))
   } catch {
     // quota / private mode
   }

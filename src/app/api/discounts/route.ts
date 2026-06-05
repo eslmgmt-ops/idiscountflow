@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { getCurrentProfile } from "@/lib/auth/profile"
 import type { DiscountRow } from "@/lib/discount-fields"
 import { getStoreNamesFromRow } from "@/lib/discount-format"
-import { fetchServiceOrgDiscounts, getTreezEnv, normalizeDiscountRows } from "@/lib/treez"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
+import { fetchServiceOrgDiscounts, normalizeDiscountRows } from "@/lib/treez"
 
 export async function GET(req: Request) {
   const actor = await getCurrentProfile()
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const env = getTreezEnv()
+    const { env, tenantKey } = resolveTreezTenantForRequest(req, actor)
     const { searchParams } = new URL(req.url)
     const isManual = searchParams.get("isManual")
     const body = await fetchServiceOrgDiscounts(env, {
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
         return names.some((n) => allow.has(n))
       })
     }
-    return NextResponse.json({ ok: true, rows, raw: body })
+    return NextResponse.json({ ok: true, rows, raw: body, tenantKey })
   } catch (e) {
     const err = e as Error & { status?: number; body?: unknown }
     return NextResponse.json(

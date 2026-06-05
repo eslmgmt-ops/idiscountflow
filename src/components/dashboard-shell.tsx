@@ -21,6 +21,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { DashboardKBar, DashboardKBarTrigger } from "@/components/dashboard-kbar"
+import { TenantSelector } from "@/components/tenant-selector"
+import { useTenantSession } from "@/lib/use-tenant-session"
 import {
   Sidebar,
   SidebarContent,
@@ -169,6 +171,7 @@ export function DashboardShell({
 }) {
   const pathname = usePathname() || ""
   const [accessProfile, setAccessProfile] = React.useState<ProfileRow | null>(null)
+  const tenantSession = useTenantSession()
 
   React.useEffect(() => {
     let cancelled = false
@@ -312,6 +315,12 @@ export function DashboardShell({
             </Tooltip>
             <div className="min-w-0 flex-1" aria-hidden />
             <div className="flex shrink-0 items-center gap-2">
+              <TenantSelector
+                tenants={tenantSession.tenants}
+                value={tenantSession.tenantKey}
+                disabled={tenantSession.loading}
+                onChange={(key) => void tenantSession.setTenantKey(key)}
+              />
               {headerActions}
               <DashboardKBarTrigger />
             </div>

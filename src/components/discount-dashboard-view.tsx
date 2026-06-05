@@ -16,6 +16,7 @@ import {
   readDiscountCache,
   writeDiscountCache,
 } from "@/lib/discount-cache"
+import { useTenantSession } from "@/lib/use-tenant-session"
 import type { ProfileRow } from "@/lib/auth/types"
 import { cn } from "@/lib/utils"
 import { RefreshCwIcon } from "lucide-react"
@@ -35,10 +36,10 @@ function formatUpdatedLabel(ts: number): string {
 }
 
 async function fetchDiscountRows(): Promise<
-  | { ok: true; rows: Record<string, unknown>[] }
+  | { ok: true; rows: Record<string, unknown>[]; tenantKey?: string }
   | { ok: false; error: string; status?: number }
 > {
-  const res = await fetch("/api/discounts", { cache: "no-store" })
+  const res = await fetch("/api/discounts", { cache: "no-store", credentials: "same-origin" })
   const data = await res.json()
   if (!data.ok) {
     return {
@@ -47,7 +48,11 @@ async function fetchDiscountRows(): Promise<
       status: data.status,
     }
   }
-  return { ok: true, rows: Array.isArray(data.rows) ? data.rows : [] }
+  return {
+    ok: true,
+    rows: Array.isArray(data.rows) ? data.rows : [],
+    tenantKey: typeof data.tenantKey === "string" ? data.tenantKey : undefined,
+  }
 }
 
 export function DiscountDashboardView() {
@@ -58,11 +63,13 @@ export function DiscountDashboardView() {
   const [refreshing, setRefreshing] = React.useState(false)
   const [lastFetchedAt, setLastFetchedAt] = React.useState<number | null>(null)
   const [sessionProfile, setSessionProfile] = React.useState<ProfileRow | null>(null)
+  const tenantSession = useTenantSession()
   const mounted = React.useRef(false)
   const rowsRef = React.useRef(rows)
   rowsRef.current = rows
 
   const runFetch = React.useCallback(async (manual: boolean) => {
+    if (tenantSession.loading) return
     if (manual) setRefreshing(true)
     try {
       const result = await fetchDiscountRows()
@@ -81,7 +88,7 @@ export function DiscountDashboardView() {
         return
       }
       setRows(result.rows)
-      writeDiscountCache(result.rows)
+      writeDiscountCache(result.rows, result.tenantKey ?? tenantSession.tenantKey)
       const now = Date.now()
       setLastFetchedAt(now)
       setError(null)
@@ -101,7 +108,16 @@ export function DiscountDashboardView() {
     } finally {
       if (manual) setRefreshing(false)
     }
-  }, [])
+  }, [tenantSession.loading, tenantSession.tenantKey])
+
+  React.useEffect(() => {
+    const onTenantChanged = () => {
+      setShowSkeleton(true)
+      void runFetch(false)
+    }
+    window.addEventListener("treez-tenant-changed", onTenantChanged)
+    return () => window.removeEventListener("treez-tenant-changed", onTenantChanged)
+  }, [runFetch])
 
   React.useEffect(() => {
     let cancelled = false
@@ -123,7 +139,8 @@ export function DiscountDashboardView() {
   }, [])
 
   React.useLayoutEffect(() => {
-    const cached = readDiscountCache()
+    if (tenantSession.loading) return
+    const cached = readDiscountCache(tenantSession.tenantKey)
     if (cached?.rows && !isDiscountCacheStale(cached.fetchedAt)) {
       setRows(cached.rows)
       setLastFetchedAt(cached.fetchedAt)
@@ -140,13 +157,13 @@ export function DiscountDashboardView() {
     }
     setShowSkeleton(true)
     void runFetch(false)
-  }, [runFetch])
+  }, [runFetch, tenantSession.loading, tenantSession.tenantKey])
 
   React.useEffect(() => {
     mounted.current = true
     const interval = window.setInterval(() => {
       if (!mounted.current || document.visibilityState !== "visible") return
-      const c = readDiscountCache()
+      const c = readDiscountCache(tenantSession.tenantKey)
       if (c && isDiscountCacheStale(c.fetchedAt)) {
         void runFetch(false)
       }
@@ -154,7 +171,7 @@ export function DiscountDashboardView() {
 
     const onVisible = () => {
       if (document.visibilityState !== "visible") return
-      const c = readDiscountCache()
+      const c = readDiscountCache(tenantSession.tenantKey)
       if (c && isDiscountCacheStale(c.fetchedAt)) {
         void runFetch(false)
       }
@@ -166,11 +183,14 @@ export function DiscountDashboardView() {
       window.clearInterval(interval)
       document.removeEventListener("visibilitychange", onVisible)
     }
-  }, [runFetch])
+  }, [runFetch, tenantSession.tenantKey])
 
   const isManager = sessionProfile?.role === "manager"
   const managerStores = sessionProfile?.assigned_store_names ?? []
-  const managerMissingStores = isManager && managerStores.length === 0
+  const managerTenants = sessionProfile?.assigned_tenant_keys ?? []
+  const managerMissingTenants = isManager && managerTenants.length === 0
+  const managerMissingStores = isManager && !managerMissingTenants && managerStores.length === 0
+  const activeTenantLabel = tenantSession.tenants.find((t) => t.key === tenantSession.tenantKey)?.label
 
   const subtitle =
     lastFetchedAt !== null && !showSkeleton ? (
@@ -206,8 +226,14 @@ export function DiscountDashboardView() {
             <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
               Discount manager
             </h1>
-            {isManager && managerStores.length > 0 ? (
+            {activeTenantLabel ? (
               <p className="mt-2 max-w-2xl text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Store: </span>
+                {activeTenantLabel}
+              </p>
+            ) : null}
+            {isManager && managerStores.length > 0 ? (
+              <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">Your locations: </span>
                 {managerStores.join(", ")}
               </p>
@@ -216,14 +242,33 @@ export function DiscountDashboardView() {
           </div>
         </div>
 
-        {managerMissingStores ? (
+        {tenantSession.error && !tenantSession.loading ? (
+          <div
+            role="status"
+            className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-foreground"
+          >
+            <p className="font-medium text-amber-900 dark:text-amber-100">Store access required</p>
+            <p className="mt-2 text-muted-foreground">{tenantSession.error}</p>
+          </div>
+        ) : managerMissingTenants ? (
+          <div
+            role="status"
+            className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-foreground"
+          >
+            <p className="font-medium text-amber-900 dark:text-amber-100">No stores assigned</p>
+            <p className="mt-2 text-muted-foreground">
+              An admin must assign at least one store to your manager account on the Users page before discounts
+              appear here.
+            </p>
+          </div>
+        ) : managerMissingStores ? (
           <div
             role="status"
             className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-5 py-4 text-sm text-foreground"
           >
             <p className="font-medium text-amber-900 dark:text-amber-100">No store locations assigned</p>
             <p className="mt-2 text-muted-foreground">
-              An admin must assign at least one store to your manager account on the Users page before discounts
+              An admin must assign at least one location within your store on the Users page before discounts
               appear here.
             </p>
           </div>

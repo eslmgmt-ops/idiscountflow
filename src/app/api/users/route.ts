@@ -4,7 +4,11 @@ import { getCurrentProfile, normalizeProfileRow } from "@/lib/auth/profile"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 import { attachPromoShareIds, syncManagerPromoShares } from "@/lib/manager-promo-shares"
 import { validateUuidList } from "@/lib/validate-promo-doc-ids"
-import { normalizeAndValidateManagerStoreNames } from "@/lib/validate-manager-stores"
+import { listTreezTenants } from "@/lib/treez-tenants"
+import {
+  normalizeAndValidateManagerStoreNamesForTenants,
+  normalizeTenantKeys,
+} from "@/lib/validate-manager-stores"
 
 export async function GET() {
   const actor = await getCurrentProfile()
@@ -39,7 +43,7 @@ export async function GET() {
 
   const { data: rows, error } = await admin
     .from("profiles")
-    .select("id,email,full_name,role,created_at,assigned_store_names")
+    .select("id,email,full_name,role,created_at,assigned_tenant_keys,assigned_store_names")
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -75,6 +79,7 @@ export async function POST(request: Request) {
     password?: string
     full_name?: string
     role?: unknown
+    assigned_tenant_keys?: unknown
     assigned_store_names?: unknown
     shared_sales_promo_document_ids?: unknown
   }
@@ -118,9 +123,20 @@ export async function POST(request: Request) {
     )
   }
 
+  let assignedTenantKeys: string[] = []
   let assignedNames: string[] = []
   if (targetRole === "manager") {
-    const v = await normalizeAndValidateManagerStoreNames(body.assigned_store_names)
+    const configured = new Set(listTreezTenants().map((t) => t.key))
+    const tenantParse = normalizeTenantKeys(body.assigned_tenant_keys, configured)
+    if (!tenantParse.ok) {
+      return NextResponse.json({ ok: false, error: tenantParse.error }, { status: 400 })
+    }
+    assignedTenantKeys = tenantParse.keys
+
+    const v = await normalizeAndValidateManagerStoreNamesForTenants(
+      body.assigned_store_names,
+      assignedTenantKeys,
+    )
     if (!v.ok) {
       return NextResponse.json({ ok: false, error: v.error }, { status: 400 })
     }
@@ -164,6 +180,7 @@ export async function POST(request: Request) {
       email,
       full_name: full_name || null,
       role: targetRole,
+      assigned_tenant_keys: targetRole === "manager" ? assignedTenantKeys : [],
       assigned_store_names: targetRole === "manager" ? assignedNames : [],
       updated_at: new Date().toISOString(),
     })
@@ -196,6 +213,7 @@ export async function POST(request: Request) {
       email,
       full_name: full_name || null,
       role: targetRole,
+      assigned_tenant_keys: targetRole === "manager" ? assignedTenantKeys : [],
       assigned_store_names: targetRole === "manager" ? assignedNames : [],
     },
   })

@@ -1,9 +1,16 @@
-import { fetchOrgStores, getTreezEnv } from "@/lib/treez"
+import { getCurrentProfile } from "@/lib/auth/profile"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
+import { fetchOrgStores } from "@/lib/treez"
 import { NextResponse } from "next/server"
 
-export async function GET() {
+export async function GET(req: Request) {
+  const actor = await getCurrentProfile()
+  if (!actor) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   try {
-    const env = getTreezEnv()
+    const { env } = resolveTreezTenantForRequest(req, actor)
     const result = await fetchOrgStores(env)
     return NextResponse.json(result)
   } catch (e) {

@@ -103,6 +103,9 @@ export function UsersManagement() {
   const [fullName, setFullName] = React.useState("")
   const [role, setRole] = React.useState<"admin" | "manager">("manager")
 
+  const [configuredTenants, setConfiguredTenants] = React.useState<
+    { key: string; label: string; dispensary: string }[]
+  >([])
   const [orgStoreNames, setOrgStoreNames] = React.useState<string[]>([])
   const [storesLoading, setStoresLoading] = React.useState(false)
   const [storeSearchCreate, setStoreSearchCreate] = React.useState("")
@@ -112,6 +115,7 @@ export function UsersManagement() {
   const [promoSearchCreate, setPromoSearchCreate] = React.useState("")
   const [promoSearchEdit, setPromoSearchEdit] = React.useState("")
 
+  const [createTenantSelected, setCreateTenantSelected] = React.useState<Set<string>>(() => new Set())
   const [createStoreSelected, setCreateStoreSelected] = React.useState<Set<string>>(() => new Set())
   const [createPromoSelected, setCreatePromoSelected] = React.useState<Set<string>>(() => new Set())
 
@@ -120,6 +124,7 @@ export function UsersManagement() {
   const [editEmail, setEditEmail] = React.useState("")
   const [editFullName, setEditFullName] = React.useState("")
   const [editPassword, setEditPassword] = React.useState("")
+  const [editTenants, setEditTenants] = React.useState<Set<string>>(() => new Set())
   const [editStores, setEditStores] = React.useState<Set<string>>(() => new Set())
   const [editPromos, setEditPromos] = React.useState<Set<string>>(() => new Set())
   const [editSaving, setEditSaving] = React.useState(false)
@@ -187,17 +192,48 @@ export function UsersManagement() {
     void load()
   }, [load])
 
-  const loadCatalogs = React.useCallback(async () => {
+  const loadStoreNamesForTenants = React.useCallback(async (tenantKeys: string[]) => {
+    if (tenantKeys.length === 0) {
+      setOrgStoreNames([])
+      return
+    }
     setStoresLoading(true)
+    try {
+      const names = new Set<string>()
+      for (const key of tenantKeys) {
+        const storesRes = await fetch(`/api/stores?tenant=${encodeURIComponent(key)}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+        })
+        if (storesRes.ok) {
+          const raw = await storesRes.json()
+          for (const n of parseStoreNamesFromApiPayload(raw)) names.add(n)
+        }
+      }
+      setOrgStoreNames([...names].sort((a, b) => a.localeCompare(b)))
+    } catch {
+      toast.error("Could not load store locations")
+      setOrgStoreNames([])
+    } finally {
+      setStoresLoading(false)
+    }
+  }, [])
+
+  const loadCatalogs = React.useCallback(async () => {
     setPromoLoading(true)
     try {
-      const [storesRes, promosRes] = await Promise.all([
-        fetch("/api/stores", { credentials: "same-origin", cache: "no-store" }),
+      const [tenantsRes, promosRes] = await Promise.all([
+        fetch("/api/tenants", { credentials: "same-origin", cache: "no-store" }),
         fetch("/api/sales-promo/documents", { credentials: "same-origin", cache: "no-store" }),
       ])
-      if (storesRes.ok) {
-        const raw = await storesRes.json()
-        setOrgStoreNames(parseStoreNamesFromApiPayload(raw))
+      if (tenantsRes.ok) {
+        const tj = (await tenantsRes.json()) as {
+          ok?: boolean
+          allConfigured?: { key: string; label: string; dispensary: string }[]
+        }
+        if (tj.ok && Array.isArray(tj.allConfigured)) {
+          setConfiguredTenants(tj.allConfigured)
+        }
       }
       if (promosRes.ok) {
         const pj = (await promosRes.json()) as {
@@ -211,7 +247,6 @@ export function UsersManagement() {
     } catch {
       toast.error("Could not load store or promo lists")
     } finally {
-      setStoresLoading(false)
       setPromoLoading(false)
     }
   }, [])
@@ -224,10 +259,21 @@ export function UsersManagement() {
 
   React.useEffect(() => {
     if (role !== "manager") {
+      setCreateTenantSelected(new Set())
       setCreateStoreSelected(new Set())
       setCreatePromoSelected(new Set())
     }
   }, [role])
+
+  React.useEffect(() => {
+    if (role !== "manager") return
+    void loadStoreNamesForTenants([...createTenantSelected].sort((a, b) => a.localeCompare(b)))
+  }, [role, createTenantSelected, loadStoreNamesForTenants])
+
+  React.useEffect(() => {
+    if (!editOpen || !editTarget) return
+    void loadStoreNamesForTenants([...editTenants].sort((a, b) => a.localeCompare(b)))
+  }, [editOpen, editTarget, editTenants, loadStoreNamesForTenants])
 
   const creatableRoles = React.useMemo((): Array<"admin" | "manager"> => {
     if (!me) return []
@@ -245,6 +291,7 @@ export function UsersManagement() {
     setFullName("")
     const first = creatableRoles.includes("manager") ? "manager" : "admin"
     setRole(first)
+    setCreateTenantSelected(new Set())
     setCreateStoreSelected(new Set())
     setCreatePromoSelected(new Set())
     setStoreSearchCreate("")
@@ -265,6 +312,10 @@ export function UsersManagement() {
       toast.error("You cannot create users with this role")
       return
     }
+    if (role === "manager" && createTenantSelected.size === 0) {
+      toast.error("Select at least one store for a manager")
+      return
+    }
     if (role === "manager" && createStoreSelected.size === 0) {
       toast.error("Select at least one store location for a manager")
       return
@@ -280,6 +331,8 @@ export function UsersManagement() {
           password,
           full_name: fullName.trim() || undefined,
           role,
+          assigned_tenant_keys:
+            role === "manager" ? Array.from(createTenantSelected).sort((a, b) => a.localeCompare(b)) : undefined,
           assigned_store_names:
             role === "manager" ? Array.from(createStoreSelected).sort((a, b) => a.localeCompare(b)) : undefined,
           shared_sales_promo_document_ids:
@@ -334,6 +387,7 @@ export function UsersManagement() {
     setEditEmail(row.email?.trim() ?? "")
     setEditFullName(row.full_name?.trim() ?? "")
     setEditPassword("")
+    setEditTenants(new Set(row.assigned_tenant_keys ?? []))
     setEditStores(new Set(row.assigned_store_names ?? []))
     setEditPromos(new Set(row.shared_sales_promo_document_ids ?? []))
     setStoreSearchEdit("")
@@ -352,6 +406,10 @@ export function UsersManagement() {
       toast.error("Password must be at least 6 characters")
       return
     }
+    if (editTenants.size === 0) {
+      toast.error("Select at least one store")
+      return
+    }
     if (editStores.size === 0) {
       toast.error("Select at least one store location")
       return
@@ -366,6 +424,7 @@ export function UsersManagement() {
           email: editEmail.trim(),
           full_name: editFullName.trim() || null,
           password: editPassword,
+          assigned_tenant_keys: Array.from(editTenants).sort((a, b) => a.localeCompare(b)),
           assigned_store_names: Array.from(editStores).sort((a, b) => a.localeCompare(b)),
           shared_sales_promo_document_ids: Array.from(editPromos),
         }),
@@ -517,7 +576,8 @@ export function UsersManagement() {
               <TableHead>Email</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead className="min-w-[140px]">Stores</TableHead>
+              <TableHead className="min-w-[120px]">Store access</TableHead>
+              <TableHead className="min-w-[140px]">Locations</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="w-28 text-right">Actions</TableHead>
             </TableRow>
@@ -525,7 +585,7 @@ export function UsersManagement() {
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
                   {loadError && me
                     ? "No rows loaded. Fix the error above or add a user."
                     : canInvite
@@ -554,6 +614,17 @@ export function UsersManagement() {
                       >
                         {roleLabel(u.role)}
                       </span>
+                    </TableCell>
+                    <TableCell className="max-w-[160px] text-xs text-muted-foreground">
+                      {u.role === "manager" && (u.assigned_tenant_keys?.length ?? 0) > 0 ? (
+                        <span className="line-clamp-2" title={u.assigned_tenant_keys!.join(", ")}>
+                          {u.assigned_tenant_keys!.join(", ")}
+                        </span>
+                      ) : u.role === "manager" ? (
+                        "—"
+                      ) : (
+                        <span className="text-muted-foreground/70">all</span>
+                      )}
                     </TableCell>
                     <TableCell className="max-w-[200px] text-xs text-muted-foreground">
                       {u.role === "manager" && (u.assigned_store_names?.length ?? 0) > 0 ? (
@@ -711,6 +782,40 @@ export function UsersManagement() {
             {role === "manager" ? (
               <>
                 <div className="space-y-2 border-t border-border/60 pt-4">
+                  <Label>Stores (required)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Which Treez store accounts this manager may open after login.
+                  </p>
+                  <ScrollArea className="h-28 rounded-md border border-border/80 p-2">
+                    {configuredTenants.length === 0 ? (
+                      <p className="py-4 text-center text-xs text-muted-foreground">No stores configured</p>
+                    ) : (
+                      <div className="space-y-1 pr-2">
+                        {configuredTenants.map((t) => (
+                          <label
+                            key={t.key}
+                            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/70"
+                          >
+                            <Checkbox
+                              checked={createTenantSelected.has(t.key)}
+                              onCheckedChange={(v) => {
+                                setCreateTenantSelected((prev) => {
+                                  const next = new Set(prev)
+                                  if (v === true) next.add(t.key)
+                                  else next.delete(t.key)
+                                  return next
+                                })
+                                setCreateStoreSelected(new Set())
+                              }}
+                            />
+                            <span className="text-sm leading-tight">{t.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </div>
+                <div className="space-y-2">
                   <Label>Store locations (required)</Label>
                   <p className="text-xs text-muted-foreground">
                     Same list as the discount dashboard location filter. This manager only sees discounts that include
@@ -934,6 +1039,37 @@ export function UsersManagement() {
                     unchanged.
                   </p>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Stores</Label>
+                <ScrollArea className="h-28 rounded-md border border-border/80 p-2">
+                  {configuredTenants.length === 0 ? (
+                    <p className="py-4 text-center text-xs text-muted-foreground">No stores configured</p>
+                  ) : (
+                    <div className="space-y-1 pr-2">
+                      {configuredTenants.map((t) => (
+                        <label
+                          key={t.key}
+                          className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/70"
+                        >
+                          <Checkbox
+                            checked={editTenants.has(t.key)}
+                            onCheckedChange={(v) => {
+                              setEditTenants((prev) => {
+                                const next = new Set(prev)
+                                if (v === true) next.add(t.key)
+                                else next.delete(t.key)
+                                return next
+                              })
+                              setEditStores(new Set())
+                            }}
+                          />
+                          <span className="text-sm leading-tight">{t.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
               </div>
               <div className="space-y-2">
                 <Label>Store locations</Label>

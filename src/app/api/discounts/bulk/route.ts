@@ -1,18 +1,20 @@
-import { createServiceDiscount, getTreezEnv } from "@/lib/treez"
+import { createServiceDiscount } from "@/lib/treez"
 import { NextResponse } from "next/server"
 import { getCurrentProfile } from "@/lib/auth/profile"
 import { rejectIfManager } from "@/lib/auth/permissions"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
 
 // Helper to add delay between requests
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export async function POST(request: Request) {
-  const denied = rejectIfManager(await getCurrentProfile())
+  const actor = await getCurrentProfile()
+  const denied = rejectIfManager(actor)
   if (denied) return denied
 
   try {
     const body = await request.json()
-    const env = getTreezEnv()
+    const { env } = resolveTreezTenantForRequest(request, actor!)
     
     // Check if it's a bulk upload
     if (Array.isArray(body)) {

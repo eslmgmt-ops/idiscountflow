@@ -1,13 +1,15 @@
-import { deleteServiceDiscountOrFallback, getTreezEnv } from "@/lib/treez"
+import { deleteServiceDiscountOrFallback } from "@/lib/treez"
 import { NextResponse } from "next/server"
 import { rejectIfManager } from "@/lib/auth/permissions"
 import { getCurrentProfile } from "@/lib/auth/profile"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const denied = rejectIfManager(await getCurrentProfile())
+  const actor = await getCurrentProfile()
+  const denied = rejectIfManager(actor)
   if (denied) return denied
 
   try {
@@ -22,7 +24,7 @@ export async function DELETE(
     
     console.log("DELETE /api/discounts/[id] - Attempting to delete discount:", id)
     
-    const env = getTreezEnv()
+    const { env } = resolveTreezTenantForRequest(request, actor!)
     
     const { outcome, body } = await deleteServiceDiscountOrFallback(env, id)
     console.log("DELETE /api/discounts/[id] - Success:", outcome, body)
