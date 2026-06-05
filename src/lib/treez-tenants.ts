@@ -45,14 +45,18 @@ function parseTenantsJson(raw: string): TreezTenant[] {
 
 /** Default tenant from existing TREEZ_ORG_ID / TREEZ_DISPENSARY env vars. */
 export function getDefaultTenantFromEnv(): TreezTenant | null {
-  const base = getTreezEnv()
-  const dispensary = base.dispensary?.trim()
-  if (!base.orgId?.trim() || !dispensary) return null
-  return {
-    key: slugFromDispensary(dispensary),
-    label: dispensary,
-    orgId: base.orgId.trim(),
-    dispensary,
+  try {
+    const base = getTreezEnv()
+    const dispensary = base.dispensary?.trim()
+    if (!base.orgId?.trim() || !dispensary) return null
+    return {
+      key: slugFromDispensary(dispensary),
+      label: dispensary,
+      orgId: base.orgId.trim(),
+      dispensary,
+    }
+  } catch {
+    return null
   }
 }
 

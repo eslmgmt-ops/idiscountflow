@@ -92,8 +92,6 @@ export function TenantSelector({
     [tenants, value],
   )
 
-  if (!selected || tenants.length === 0) return null
-
   const handleSelect = React.useCallback(
     async (key: string) => {
       if (key === value) {
@@ -110,6 +108,8 @@ export function TenantSelector({
     },
     [onChange, value],
   )
+
+  if (!selected || tenants.length === 0) return null
 
   if (tenants.length === 1) {
     return (

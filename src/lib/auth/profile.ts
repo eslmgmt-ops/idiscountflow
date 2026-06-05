@@ -21,7 +21,23 @@ export async function getProfileForUser(
     .select("id,email,full_name,role,created_at,assigned_tenant_keys,assigned_store_names")
     .eq("id", userId)
     .maybeSingle()
-  if (error || !data) return null
+
+  if (error) {
+    const missingColumn =
+      error.message.includes("assigned_tenant_keys") ||
+      error.code === "42703"
+    if (missingColumn) {
+      const { data: fallback, error: fallbackErr } = await db
+        .from("profiles")
+        .select("id,email,full_name,role,created_at,assigned_store_names")
+        .eq("id", userId)
+        .maybeSingle()
+      if (fallbackErr || !fallback) return null
+      return normalizeProfileRow(fallback as Record<string, unknown>)
+    }
+    return null
+  }
+  if (!data) return null
   return normalizeProfileRow(data)
 }
 
@@ -37,7 +53,23 @@ export async function getSessionProfile(): Promise<ProfileRow | null> {
     .select("id,email,full_name,role,created_at,assigned_tenant_keys,assigned_store_names")
     .eq("id", user.id)
     .maybeSingle()
-  if (error || !data) return null
+
+  if (error) {
+    const missingColumn =
+      error.message.includes("assigned_tenant_keys") ||
+      error.code === "42703"
+    if (missingColumn) {
+      const { data: fallback, error: fallbackErr } = await supabase
+        .from("profiles")
+        .select("id,email,full_name,role,created_at,assigned_store_names")
+        .eq("id", user.id)
+        .maybeSingle()
+      if (fallbackErr || !fallback) return null
+      return normalizeProfileRow(fallback as Record<string, unknown>)
+    }
+    return null
+  }
+  if (!data) return null
   return normalizeProfileRow(data)
 }
 

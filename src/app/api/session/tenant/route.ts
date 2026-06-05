@@ -15,8 +15,22 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
   }
 
+  let configured: ReturnType<typeof listTreezTenants>
+  try {
+    configured = listTreezTenants()
+  } catch (e) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: e instanceof Error ? e.message : "Treez configuration error",
+        tenants: [],
+        currentTenantKey: null,
+      },
+      { status: 500 },
+    )
+  }
+
   const tenants = tenantsForProfile(actor)
-  const configured = listTreezTenants()
 
   if (configured.length === 0) {
     return NextResponse.json({
