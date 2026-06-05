@@ -46,7 +46,14 @@ Keep your existing `TREEZ_ORG_ID` and `TREEZ_DISPENSARY` as the primary store. A
 TREEZ_TENANTS = [{"key":"jackpot","label":"Jackpot","orgId":"2dc82f7d-80f9-4f55-a78f-9ce0fdae8a7a","dispensary":"jackpot"},{"key":"metrocannabis","label":"Metro Cannabis","orgId":"bc767ea4-caa4-4031-872b-4971ad8792c9","dispensary":"metrocannabis"}]
 ```
 
-After deploy, run the Supabase migration `20260605120000_treez_tenant_access.sql`, then assign store access to managers on the **Users** page.
+After deploy, run these Supabase migrations:
+
+- `20260605120000_treez_tenant_access.sql` — manager store access
+- `20260605130000_tenant_scoped_workspace_data.sql` — per-store bulk drafts and sales promo
+
+Then assign store access to managers on the **Users** page.
+
+Existing bulk drafts and sales promo documents (created before this update) have an empty `tenant_key` and are treated as belonging to your **primary** store (`TREEZ_ORG_ID` + `TREEZ_DISPENSARY`). New records are always tagged with the active store.
 
 ### Step 3: Deploy
 

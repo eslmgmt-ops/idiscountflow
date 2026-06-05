@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { canManageSalesPromo } from "@/lib/auth/permissions"
 import { getCurrentProfile, getProfileForUser } from "@/lib/auth/profile"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
+import { userCanAccessSalesPromoDocument } from "@/lib/sales-promo/access"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 
 type RouteCtx = { params: Promise<{ id: string }> }
@@ -44,16 +46,18 @@ export async function POST(request: Request, ctx: RouteCtx) {
     return NextResponse.json({ ok: false, error: msg }, { status: 500 })
   }
 
-  const { data: doc, error: docErr } = await admin
-    .from("sales_promo_documents")
-    .select("id")
-    .eq("id", documentId)
-    .maybeSingle()
-
-  if (docErr) {
-    return NextResponse.json({ ok: false, error: docErr.message }, { status: 500 })
+  let tenantKey: string
+  try {
+    tenantKey = resolveTreezTenantForRequest(request, actor).tenantKey
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : "Could not resolve store" },
+      { status: 400 },
+    )
   }
-  if (!doc) {
+
+  const canDoc = await userCanAccessSalesPromoDocument(admin, actor, documentId, tenantKey)
+  if (!canDoc) {
     return NextResponse.json({ ok: false, error: "Document not found" }, { status: 404 })
   }
 
@@ -101,6 +105,16 @@ export async function DELETE(request: Request, ctx: RouteCtx) {
     )
   }
 
+  let tenantKey: string
+  try {
+    tenantKey = resolveTreezTenantForRequest(request, actor).tenantKey
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : "Could not resolve store" },
+      { status: 400 },
+    )
+  }
+
   let admin
   try {
     admin = createServiceRoleClient()
@@ -108,6 +122,11 @@ export async function DELETE(request: Request, ctx: RouteCtx) {
     const msg =
       e instanceof Error ? e.message : "SUPABASE_SERVICE_ROLE_KEY is not configured"
     return NextResponse.json({ ok: false, error: msg }, { status: 500 })
+  }
+
+  const canDoc = await userCanAccessSalesPromoDocument(admin, actor, documentId, tenantKey)
+  if (!canDoc) {
+    return NextResponse.json({ ok: false, error: "Document not found" }, { status: 404 })
   }
 
   const { error } = await admin

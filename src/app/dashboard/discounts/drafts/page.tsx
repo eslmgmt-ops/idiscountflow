@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog"
 import { ActionTooltip } from "@/components/action-tooltip"
 import { Button } from "@/components/ui/button"
 import { ArrowLeftIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { useReloadOnTenantChange } from "@/lib/use-tenant-session"
 import { toast } from "sonner"
 
 type DraftListItem = {
@@ -28,32 +29,40 @@ export default function DiscountDraftsListPage() {
     title: string
   } | null>(null)
 
-  React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      try {
-        const res = await fetch("/api/discount-drafts")
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || "Failed to load drafts")
-        if (!cancelled) setDrafts(Array.isArray(data.drafts) ? data.drafts : [])
-      } catch (e) {
-        toast.error((e as Error).message)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+  const loadDrafts = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/discount-drafts", {
+        credentials: "same-origin",
+        cache: "no-store",
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to load drafts")
+      setDrafts(Array.isArray(data.drafts) ? data.drafts : [])
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setLoading(false)
     }
   }, [])
+
+  React.useEffect(() => {
+    void loadDrafts()
+  }, [loadDrafts])
+
+  useReloadOnTenantChange(() => {
+    void loadDrafts()
+  })
 
   async function confirmDeleteDraft() {
     if (!draftPendingDelete) return
     const { id } = draftPendingDelete
     setDeletingId(id)
     try {
-      const res = await fetch(`/api/discount-drafts/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/discount-drafts/${id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      })
       const data = (await res.json()) as { ok?: boolean; error?: string }
       if (!res.ok) throw new Error(data.error || "Failed to delete draft")
       setDrafts((prev) => prev.filter((d) => d.id !== id))

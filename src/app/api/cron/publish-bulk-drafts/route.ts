@@ -19,7 +19,9 @@ import {
   validateBulkRow,
 } from "@/lib/bulk-discount-io"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
-import { createServiceDiscount, getTreezEnv, updateServiceDiscount } from "@/lib/treez"
+import { getDefaultTenantKey, LEGACY_TENANT_KEY } from "@/lib/tenant-data-scope"
+import { getTreezEnvForTenant } from "@/lib/treez-tenants"
+import { createServiceDiscount, updateServiceDiscount } from "@/lib/treez"
 
 const BETWEEN_TREEZ_MS = 150
 
@@ -48,21 +50,11 @@ export async function GET(request: Request) {
     )
   }
 
-  let env
-  try {
-    env = getTreezEnv()
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Treez env missing" },
-      { status: 500 },
-    )
-  }
-
   const today = new Date().toISOString().slice(0, 10)
 
   const { data: drafts, error: listErr } = await admin
     .from("bulk_discount_drafts")
-    .select("id,rows")
+    .select("id,rows,tenant_key")
 
   if (listErr) {
     return NextResponse.json({ error: listErr.message }, { status: 500 })
@@ -72,8 +64,37 @@ export async function GET(request: Request) {
   const details: { draftId: string; rowId: string; title: string; error?: string }[] = []
   let treezDelay = false
 
+  const defaultTenantKey = getDefaultTenantKey()
+
   for (const d of drafts ?? []) {
     if (!d?.id) continue
+
+    const rawTenant = String(d.tenant_key ?? LEGACY_TENANT_KEY).trim().toLowerCase()
+    const tenantKey =
+      rawTenant || defaultTenantKey || ""
+    if (!tenantKey) {
+      details.push({
+        draftId: d.id,
+        rowId: "(draft)",
+        title: "(draft)",
+        error: "Draft has no tenant_key and no default store is configured",
+      })
+      continue
+    }
+
+    let env
+    try {
+      env = getTreezEnvForTenant(tenantKey)
+    } catch (e) {
+      details.push({
+        draftId: d.id,
+        rowId: "(draft)",
+        title: "(draft)",
+        error: e instanceof Error ? e.message : `Treez env missing for store ${tenantKey}`,
+      })
+      continue
+    }
+
     let rows = deserializeBulkRows(d.rows)
     rows = rows.map((r) => recomputeRowMeta(r))
     let changed = false

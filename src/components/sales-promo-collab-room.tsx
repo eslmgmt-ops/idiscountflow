@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useReloadOnTenantChange } from "@/lib/use-tenant-session"
 import type { JSONContent } from "@tiptap/core"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
@@ -805,6 +807,7 @@ function SharingPanel({
 }
 
 function PromoDocWorkspace({ docId }: { docId: string }) {
+  const router = useRouter()
   const [title, setTitle] = React.useState("")
   const [docContent, setDocContent] = React.useState<JSONContent>(EMPTY_DOC)
   const [canManage, setCanManage] = React.useState(false)
@@ -856,6 +859,13 @@ function PromoDocWorkspace({ docId }: { docId: string }) {
       cancelled = true
     }
   }, [docId])
+
+  useReloadOnTenantChange(() => {
+    toast.message("Store changed", {
+      description: "Sales Promo documents are per store. Returning to the list.",
+    })
+    router.push("/dashboard/sales-promo")
+  })
 
   async function saveTitle(next: string) {
     try {

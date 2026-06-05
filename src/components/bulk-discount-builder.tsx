@@ -42,6 +42,7 @@ import {
 import { buildTreezPayloadsFromBulkRows } from "@/lib/bulk-discount-payload"
 import { exportActivePercentDiscountsToBulkRows } from "@/lib/bulk-discount-from-treez"
 import { ActionTooltip } from "@/components/action-tooltip"
+import { useReloadOnTenantChange } from "@/lib/use-tenant-session"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 const TABLE_PAGE_SIZE = 10
@@ -125,13 +126,30 @@ export function BulkDiscountBuilder({
     fetchStoresAndCollections()
   }, [])
 
+  useReloadOnTenantChange(() => {
+    if (mode === "draft" && draftId) {
+      toast.message("Store changed", {
+        description: "Bulk drafts are per store. Opening the list for the selected store.",
+      })
+      router.push("/dashboard/discounts/drafts")
+      return
+    }
+    void fetchStoresAndCollections()
+    setRows([defaultEmptyRow()])
+    setResults(null)
+    setPublishSelection(new Set())
+  })
+
   React.useEffect(() => {
     if (mode !== "draft" || !draftId) return
     let cancelled = false
     ;(async () => {
       setLoadingDraft(true)
       try {
-        const res = await fetch(`/api/discount-drafts/${draftId}`)
+        const res = await fetch(`/api/discount-drafts/${draftId}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+        })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "Failed to load draft")
         if (cancelled) return
@@ -281,6 +299,7 @@ export function BulkDiscountBuilder({
       if (mode === "draft" && draftId) {
         const res = await fetch(`/api/discount-drafts/${draftId}`, {
           method: "PATCH",
+          credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         })
@@ -290,6 +309,7 @@ export function BulkDiscountBuilder({
       } else {
         const res = await fetch("/api/discount-drafts", {
           method: "POST",
+          credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         })
@@ -332,6 +352,7 @@ export function BulkDiscountBuilder({
         const chunk = chunks[ci]
         const res = await fetch(`/api/discount-drafts/${draftId}/publish`, {
           method: "POST",
+          credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ rowIds: chunk }),
         })
@@ -352,7 +373,10 @@ export function BulkDiscountBuilder({
           return
         }
 
-        const reload = await fetch(`/api/discount-drafts/${draftId}`)
+        const reload = await fetch(`/api/discount-drafts/${draftId}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+        })
         const d2 = await reload.json()
         if (reload.ok && d2.draft?.rows) setRows(deserializeBulkRows(d2.draft.rows))
         setPublishSelection((prev) => {
@@ -370,7 +394,10 @@ export function BulkDiscountBuilder({
     } catch (e) {
       toast.error("Publish failed", { description: (e as Error).message })
       try {
-        const reload = await fetch(`/api/discount-drafts/${draftId}`)
+        const reload = await fetch(`/api/discount-drafts/${draftId}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+        })
         const d2 = await reload.json()
         if (reload.ok && d2.draft?.rows) setRows(deserializeBulkRows(d2.draft.rows))
       } catch {

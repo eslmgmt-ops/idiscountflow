@@ -1,13 +1,25 @@
 import { NextResponse } from "next/server"
 import { rejectIfManager } from "@/lib/auth/permissions"
 import { getCurrentProfile } from "@/lib/auth/profile"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
+import { tenantFilterOrClause } from "@/lib/tenant-data-scope"
 
-export async function GET() {
+export async function GET(req: Request) {
   const actor = await getCurrentProfile()
   const denied = rejectIfManager(actor)
   if (denied) return denied
   const uid = actor!.id
+
+  let tenantKey: string
+  try {
+    tenantKey = resolveTreezTenantForRequest(req, actor!).tenantKey
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Could not resolve store" },
+      { status: 400 },
+    )
+  }
 
   let admin
   try {
@@ -21,8 +33,9 @@ export async function GET() {
 
   const { data, error } = await admin
     .from("bulk_discount_drafts")
-    .select("id,title,rows,created_at,updated_at")
+    .select("id,title,rows,tenant_key,created_at,updated_at")
     .eq("created_by", uid)
+    .or(tenantFilterOrClause(tenantKey))
     .order("updated_at", { ascending: false })
 
   if (error) {
@@ -34,7 +47,7 @@ export async function GET() {
     rowCount: Array.isArray(d.rows) ? d.rows.length : 0,
   }))
 
-  return NextResponse.json({ drafts })
+  return NextResponse.json({ drafts, tenantKey })
 }
 
 export async function POST(request: Request) {
@@ -42,6 +55,16 @@ export async function POST(request: Request) {
   const denied = rejectIfManager(actor)
   if (denied) return denied
   const uid = actor!.id
+
+  let tenantKey: string
+  try {
+    tenantKey = resolveTreezTenantForRequest(request, actor!).tenantKey
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Could not resolve store" },
+      { status: 400 },
+    )
+  }
 
   let body: { title?: unknown; rows?: unknown }
   try {
@@ -72,13 +95,14 @@ export async function POST(request: Request) {
       title,
       rows,
       created_by: uid,
+      tenant_key: tenantKey,
     })
-    .select("id,title,rows,created_at,updated_at")
+    .select("id,title,rows,tenant_key,created_at,updated_at")
     .single()
 
   if (error || !data) {
     return NextResponse.json({ error: error?.message ?? "Insert failed" }, { status: 500 })
   }
 
-  return NextResponse.json({ draft: data })
+  return NextResponse.json({ draft: data, tenantKey })
 }

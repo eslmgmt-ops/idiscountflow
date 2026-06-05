@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { canManageSalesPromo } from "@/lib/auth/permissions"
 import { getCurrentProfile } from "@/lib/auth/profile"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
 import { userCanAccessSalesPromoDocument } from "@/lib/sales-promo/access"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 
@@ -28,6 +29,16 @@ export async function POST(request: Request, ctx: RouteCtx) {
     return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 })
   }
 
+  let tenantKey: string
+  try {
+    tenantKey = resolveTreezTenantForRequest(request, actor).tenantKey
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : "Could not resolve store" },
+      { status: 400 },
+    )
+  }
+
   let admin
   try {
     admin = createServiceRoleClient()
@@ -37,7 +48,7 @@ export async function POST(request: Request, ctx: RouteCtx) {
     return NextResponse.json({ ok: false, error: msg }, { status: 500 })
   }
 
-  const can = await userCanAccessSalesPromoDocument(admin, actor, documentId)
+  const can = await userCanAccessSalesPromoDocument(admin, actor, documentId, tenantKey)
   if (!can) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 })
   }

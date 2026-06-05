@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2Icon, MegaphoneIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { useReloadOnTenantChange } from "@/lib/use-tenant-session"
 import { toast } from "sonner"
 
 type Creator = {
@@ -77,6 +78,10 @@ export function SalesPromoList() {
   React.useEffect(() => {
     void load()
   }, [load])
+
+  useReloadOnTenantChange(() => {
+    void load()
+  })
 
   async function createDoc() {
     setCreating(true)

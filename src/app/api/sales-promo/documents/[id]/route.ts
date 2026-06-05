@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
 import { canManageSalesPromo } from "@/lib/auth/permissions"
 import { getCurrentProfile } from "@/lib/auth/profile"
+import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
 import { userCanAccessSalesPromoDocument } from "@/lib/sales-promo/access"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 
 type RouteCtx = { params: Promise<{ id: string }> }
 
-export async function GET(_request: Request, ctx: RouteCtx) {
+export async function GET(request: Request, ctx: RouteCtx) {
   const actor = await getCurrentProfile()
   if (!actor) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
@@ -15,6 +16,16 @@ export async function GET(_request: Request, ctx: RouteCtx) {
   const { id: documentId } = await ctx.params
   if (!documentId) {
     return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 })
+  }
+
+  let tenantKey: string
+  try {
+    tenantKey = resolveTreezTenantForRequest(request, actor).tenantKey
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : "Could not resolve store" },
+      { status: 400 },
+    )
   }
 
   let admin
@@ -26,7 +37,7 @@ export async function GET(_request: Request, ctx: RouteCtx) {
     return NextResponse.json({ ok: false, error: msg }, { status: 500 })
   }
 
-  const ok = await userCanAccessSalesPromoDocument(admin, actor, documentId)
+  const ok = await userCanAccessSalesPromoDocument(admin, actor, documentId, tenantKey)
   if (!ok) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 })
   }
@@ -99,6 +110,7 @@ export async function GET(_request: Request, ctx: RouteCtx) {
     document: doc,
     shares,
     canManage: canManageSalesPromo(actor),
+    tenantKey,
   })
 }
 
@@ -111,6 +123,16 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
   const { id: documentId } = await ctx.params
   if (!documentId) {
     return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 })
+  }
+
+  let tenantKey: string
+  try {
+    tenantKey = resolveTreezTenantForRequest(request, actor).tenantKey
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : "Could not resolve store" },
+      { status: 400 },
+    )
   }
 
   let body: { title?: unknown; content?: unknown }
@@ -161,7 +183,7 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
     return NextResponse.json({ ok: false, error: msg }, { status: 500 })
   }
 
-  const ok = await userCanAccessSalesPromoDocument(admin, actor, documentId)
+  const ok = await userCanAccessSalesPromoDocument(admin, actor, documentId, tenantKey)
   if (!ok) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 })
   }
@@ -193,7 +215,7 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
   return NextResponse.json({ ok: true, document: data })
 }
 
-export async function DELETE(_request: Request, ctx: RouteCtx) {
+export async function DELETE(request: Request, ctx: RouteCtx) {
   const actor = await getCurrentProfile()
   if (!actor) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
@@ -208,6 +230,16 @@ export async function DELETE(_request: Request, ctx: RouteCtx) {
     return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 })
   }
 
+  let tenantKey: string
+  try {
+    tenantKey = resolveTreezTenantForRequest(request, actor).tenantKey
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : "Could not resolve store" },
+      { status: 400 },
+    )
+  }
+
   let admin
   try {
     admin = createServiceRoleClient()
@@ -215,6 +247,11 @@ export async function DELETE(_request: Request, ctx: RouteCtx) {
     const msg =
       e instanceof Error ? e.message : "SUPABASE_SERVICE_ROLE_KEY is not configured"
     return NextResponse.json({ ok: false, error: msg }, { status: 500 })
+  }
+
+  const can = await userCanAccessSalesPromoDocument(admin, actor, documentId, tenantKey)
+  if (!can) {
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 })
   }
 
   const { error } = await admin.from("sales_promo_documents").delete().eq("id", documentId)

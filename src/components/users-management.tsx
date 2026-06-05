@@ -224,7 +224,10 @@ export function UsersManagement() {
     try {
       const [tenantsRes, promosRes] = await Promise.all([
         fetch("/api/tenants", { credentials: "same-origin", cache: "no-store" }),
-        fetch("/api/sales-promo/documents", { credentials: "same-origin", cache: "no-store" }),
+        fetch("/api/sales-promo/documents?forAssignment=1", {
+          credentials: "same-origin",
+          cache: "no-store",
+        }),
       ])
       if (tenantsRes.ok) {
         const tj = (await tenantsRes.json()) as {

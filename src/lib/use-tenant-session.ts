@@ -82,3 +82,17 @@ export function useTenantSession(): TenantSessionState {
 
   return { tenants, tenantKey, loading, error, setTenantKey, refresh }
 }
+
+/** Re-run callback when the user switches stores in the header. */
+export function useReloadOnTenantChange(onReload: () => void) {
+  const onReloadRef = React.useRef(onReload)
+  onReloadRef.current = onReload
+
+  React.useEffect(() => {
+    const handler = () => {
+      onReloadRef.current()
+    }
+    window.addEventListener("treez-tenant-changed", handler)
+    return () => window.removeEventListener("treez-tenant-changed", handler)
+  }, [])
+}

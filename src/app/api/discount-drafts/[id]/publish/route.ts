@@ -17,6 +17,7 @@ import {
 } from "@/lib/bulk-discount-io"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
+import { rowMatchesTenant } from "@/lib/tenant-data-scope"
 import { createServiceDiscount, updateServiceDiscount } from "@/lib/treez"
 
 const BETWEEN_TREEZ_MS = 150
@@ -46,16 +47,30 @@ export async function POST(
 
   const { id: draftId } = await params
 
+  let tenantKey: string
+  try {
+    tenantKey = resolveTreezTenantForRequest(request, actor!).tenantKey
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Could not resolve store" },
+      { status: 400 },
+    )
+  }
+
   const { data: draftRow, error: fetchErr } = await admin
     .from("bulk_discount_drafts")
-    .select("id,created_by,rows,title")
+    .select("id,created_by,rows,title,tenant_key")
     .eq("id", draftId)
     .maybeSingle()
 
   if (fetchErr) {
     return NextResponse.json({ error: fetchErr.message }, { status: 500 })
   }
-  if (!draftRow || draftRow.created_by !== uid) {
+  if (
+    !draftRow ||
+    draftRow.created_by !== uid ||
+    !rowMatchesTenant(draftRow.tenant_key as string | null, tenantKey)
+  ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
@@ -120,6 +135,7 @@ export async function POST(
       { status: 500 },
     )
   }
+  // tenantKey resolved above; env matches active store cookie
 
   const results: { title: string; ok: boolean; error?: string; op: Op | "skip" }[] = [...skipped]
 
