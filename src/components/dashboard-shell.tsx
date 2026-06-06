@@ -10,7 +10,6 @@ import {
   HelpCircleIcon,
   LayoutGridIcon,
   MegaphoneIcon,
-  UploadIcon,
   UsersIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -54,15 +53,10 @@ const HELP_NAV = [
 ] as const
 
 const SIDEBAR_NAV = [
-  { href: "/dashboard", label: "All discounts", icon: LayoutGridIcon },
-  {
-    href: "/dashboard/discounts/bulk-upload",
-    label: "Import database",
-    icon: UploadIcon,
-  },
+  { href: "/dashboard", label: "Live discounts", icon: LayoutGridIcon },
   {
     href: "/dashboard/discounts/drafts",
-    label: "Bulk drafts",
+    label: "Draft Discounts",
     icon: FileStackIcon,
   },
 ] as const
@@ -84,15 +78,15 @@ const SECTION_LABEL_CLASS =
 const MOBILE_NAV = [
   {
     href: "/dashboard",
-    label: "Discounts",
+    label: "Live discounts",
     shortLabel: "Home",
     icon: LayoutGridIcon,
   },
   {
-    href: "/dashboard/discounts/bulk-upload",
-    label: "Import database",
-    shortLabel: "Import",
-    icon: UploadIcon,
+    href: "/dashboard/discounts/drafts",
+    label: "Draft Discounts",
+    shortLabel: "Drafts",
+    icon: FileStackIcon,
   },
 ] as const
 
@@ -100,7 +94,7 @@ const MOBILE_NAV = [
 const MOBILE_NAV_MANAGER = [
   {
     href: "/dashboard",
-    label: "Discounts",
+    label: "Live discounts",
     shortLabel: "Home",
     icon: LayoutGridIcon,
   },

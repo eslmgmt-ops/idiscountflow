@@ -8,19 +8,15 @@ export type StoreVisual = {
   iconClass: string
 }
 
-const KNOWN_STORES: Record<string, StoreVisual> = {
-  jackpot: {
-    initials: "JP",
-    Icon: StoreIcon,
-    bgClass: "bg-amber-500/15 ring-amber-500/25",
-    iconClass: "text-amber-700 dark:text-amber-400",
-  },
-  metrocannabis: {
-    initials: "MC",
-    Icon: StoreIcon,
-    bgClass: "bg-emerald-500/15 ring-emerald-500/25",
-    iconClass: "text-emerald-700 dark:text-emerald-400",
-  },
+const UNIFORM_VISUAL = {
+  Icon: StoreIcon,
+  bgClass: "bg-primary/10 ring-primary/20",
+  iconClass: "text-primary",
+} as const
+
+const KNOWN_INITIALS: Record<string, string> = {
+  jackpot: "JP",
+  metrocannabis: "MC",
 }
 
 function initialsFromLabel(label: string): string {
@@ -31,15 +27,11 @@ function initialsFromLabel(label: string): string {
   return label.trim().slice(0, 2).toUpperCase() || "ST"
 }
 
-/** Uniform store icon with distinct color per known company; fallback for primary / custom tenants. */
+/** Uniform icon and color for all companies. */
 export function getStoreVisual(key: string, label: string): StoreVisual {
-  const known = KNOWN_STORES[key.trim().toLowerCase()]
-  if (known) return known
-
+  const normalizedKey = key.trim().toLowerCase()
   return {
-    initials: initialsFromLabel(label),
-    Icon: StoreIcon,
-    bgClass: "bg-primary/10 ring-primary/20",
-    iconClass: "text-primary",
+    initials: KNOWN_INITIALS[normalizedKey] ?? initialsFromLabel(label),
+    ...UNIFORM_VISUAL,
   }
 }

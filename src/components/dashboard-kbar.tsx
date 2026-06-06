@@ -20,7 +20,6 @@ import {
   LayoutGridIcon,
   MegaphoneIcon,
   SearchIcon,
-  UploadIcon,
   UsersIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -84,27 +83,18 @@ function RegisterKBarActions({ managerMode }: { managerMode: boolean }) {
     const all: Action[] = [
       {
         id: "nav-discounts",
-        name: "All discounts",
+        name: "Live discounts",
         subtitle: "Browse and filter percent discounts",
         section: "Navigation",
-        keywords: "home dashboard discounts list",
+        keywords: "home dashboard discounts list live",
         icon: <LayoutGridIcon aria-hidden />,
         perform: () => {
           router.push("/dashboard")
         },
       },
       {
-        id: "nav-bulk-upload",
-        name: "Import database",
-        subtitle: "Create many discounts from the grid",
-        section: "Navigation",
-        keywords: "import database bulk upload spreadsheet",
-        icon: <UploadIcon aria-hidden />,
-        perform: () => router.push("/dashboard/discounts/bulk-upload"),
-      },
-      {
         id: "nav-drafts",
-        name: "Bulk drafts",
+        name: "Draft Discounts",
         subtitle: "Saved grids, publish, schedule",
         section: "Navigation",
         keywords: "draft saved publish schedule",
