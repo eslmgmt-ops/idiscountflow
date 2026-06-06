@@ -11,13 +11,18 @@ import {
   ChevronDownIcon,
   DownloadIcon,
   FileStackIcon,
+  HelpCircleIcon,
   LayoutGridIcon,
   LifeBuoyIcon,
+  LogOutIcon,
   MailIcon,
+  MegaphoneIcon,
   PlusIcon,
+  RefreshCwIcon,
   SearchIcon,
   StoreIcon,
   Trash2Icon,
+  UserCircleIcon,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -187,6 +192,397 @@ function MockDiscountRow({ title, amount }: { title: string; amount: string }) {
   )
 }
 
+function MockDiscountRowReadOnly({ title, amount }: { title: string; amount: string }) {
+  return (
+    <div className="border-border/70 flex items-center justify-between gap-2 rounded-lg border bg-background px-2 py-1.5 text-[9px] sm:text-[10px]">
+      <span className="min-w-0 truncate font-medium">{title}</span>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <span className="text-muted-foreground tabular-nums">{amount}</span>
+        <span className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 text-[7px] font-semibold uppercase">
+          View only
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function MockManagerSidebarNav({
+  active,
+  hasSalesPromo,
+}: {
+  active: "live" | "profile" | "promo" | "help"
+  hasSalesPromo: boolean
+}) {
+  const itemClass = (key: typeof active) =>
+    cn(
+      "mb-1 flex items-center gap-1.5 rounded-md px-1.5 py-1",
+      active === key && "bg-primary/[0.08] text-foreground",
+    )
+
+  return (
+    <div className="border-border/70 bg-sidebar/80 w-[7.5rem] shrink-0 rounded-lg border p-2 text-[9px] sm:w-[8.5rem] sm:text-[10px]">
+      <p className="text-muted-foreground mb-1.5 font-semibold tracking-widest uppercase">Discounts</p>
+      <div className={itemClass("live")}>
+        <LayoutGridIcon className="size-3 shrink-0" />
+        <span>Live discounts</span>
+      </div>
+      <p className="text-muted-foreground mb-1.5 mt-2 font-semibold tracking-widest uppercase">Workspace</p>
+      <div className={itemClass("profile")}>
+        <UserCircleIcon className="size-3 shrink-0" />
+        <span>My profile</span>
+      </div>
+      {hasSalesPromo ? (
+        <div className={itemClass("promo")}>
+          <MegaphoneIcon className="size-3 shrink-0" />
+          <span>Sales Promo</span>
+        </div>
+      ) : null}
+      <p className="text-muted-foreground mb-1.5 mt-2 font-semibold tracking-widest uppercase">Guides</p>
+      <div className={itemClass("help")}>
+        <HelpCircleIcon className="size-3 shrink-0" />
+        <span>Help</span>
+      </div>
+      <p className="text-muted-foreground mb-1.5 mt-2 font-semibold tracking-widest uppercase">Session</p>
+      <div className="text-muted-foreground mb-1 flex items-center gap-1.5 rounded-md px-1.5 py-1">
+        <RefreshCwIcon className="size-3 shrink-0" />
+        <span>Refresh</span>
+      </div>
+      <div className="text-muted-foreground flex items-center gap-1.5 rounded-md px-1.5 py-1">
+        <LogOutIcon className="size-3 shrink-0" />
+        <span>Logout</span>
+      </div>
+    </div>
+  )
+}
+
+function ManagerHelpWorkflows({ hasSalesPromo }: { hasSalesPromo: boolean }) {
+  return (
+    <>
+      <section className="space-y-6">
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Manager guide — view only
+          </h2>
+          <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground md:text-[15px]">
+            Your account can <strong className="text-foreground">browse</strong> live percent discounts for
+            assigned store locations, open <strong className="text-foreground">My profile</strong>
+            {hasSalesPromo ? (
+              <>
+                , and read shared <strong className="text-foreground">Sales Promo</strong> documents
+              </>
+            ) : null}
+            . You cannot edit discounts, use drafts, publish, or manage other users.
+          </p>
+        </div>
+
+        <Callout title="What you can open">
+          <ul className="mt-2 list-disc space-y-1 ps-5 marker:text-primary/70">
+            <li>
+              <strong>Live discounts</strong> — view-only table for your assigned locations
+            </li>
+            <li>
+              <strong>My profile</strong> — your name, email, store access, and shared promo links
+            </li>
+            {hasSalesPromo ? (
+              <li>
+                <strong>Sales Promo</strong> — read-only documents shared with you by an admin
+              </li>
+            ) : (
+              <li>
+                <strong>Sales Promo</strong> — appears after an admin shares a document with you
+              </li>
+            )}
+            <li>
+              <strong>Help</strong> — this guide and support contact
+            </li>
+            <li>
+              <strong>Refresh</strong> and <strong>Logout</strong> — in the sidebar under Session
+            </li>
+          </ul>
+        </Callout>
+      </section>
+
+      <section className="space-y-8 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
+              1 — Browse live discounts
+            </h3>
+            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Review active percent offers for stores and locations assigned to your account.
+            </p>
+          </div>
+          <GuideLink href="/dashboard">Open Live discounts</GuideLink>
+        </div>
+
+        <AppMockup title="Manager — Live discounts (view only)">
+          <div className="flex gap-3">
+            <MockManagerSidebarNav active="live" hasSalesPromo={hasSalesPromo} />
+            <div className="min-w-0 flex-1">
+              <MockHeaderBar />
+              <p className="text-muted-foreground mb-2 text-[9px]">
+                View only · assigned locations only
+              </p>
+              <MockFilterChips />
+              <div className="space-y-1.5">
+                <MockDiscountRowReadOnly title="FUN FRIDAY ON 6 JUN - 20% OFF" amount="20%" />
+                <MockDiscountRowReadOnly title="HOTBOX ON 1 JUN TO 7 JUN END - 15% OFF" amount="15%" />
+              </div>
+            </div>
+          </div>
+        </AppMockup>
+
+        <ol className="space-y-8">
+          <WorkflowStep
+            step={1}
+            title="Open Live discounts"
+            mockup={
+              <AppMockup title="Sidebar">
+                <MockManagerSidebarNav active="live" hasSalesPromo={hasSalesPromo} />
+              </AppMockup>
+            }
+          >
+            <p>
+              In the sidebar under <strong>Discounts</strong>, choose <strong>Live discounts</strong>. This is
+              your home page after sign-in.
+            </p>
+          </WorkflowStep>
+
+          <WorkflowStep
+            step={2}
+            title="Switch store (if you have more than one)"
+            mockup={
+              <AppMockup title="Header — Switch Company">
+                <MockHeaderBar />
+                <p className="text-muted-foreground mt-2 text-[10px] leading-relaxed">
+                  Use the store switcher in the top bar to move between stores assigned to you.
+                </p>
+              </AppMockup>
+            }
+          >
+            <p>
+              If an admin assigned multiple stores, use <strong>Switch Company</strong> in the header. Discounts
+              and promo documents are per store.
+            </p>
+          </WorkflowStep>
+
+          <WorkflowStep
+            step={3}
+            title="Filter and search"
+            mockup={
+              <AppMockup title="Filters & search">
+                <MockFilterChips />
+                <span className="border-border/80 mt-2 inline-flex h-6 w-full items-center gap-1 rounded-md border bg-background px-2 text-[9px] text-muted-foreground">
+                  <SearchIcon className="size-3" />
+                  Search by title or amount…
+                </span>
+              </AppMockup>
+            }
+          >
+            <p>
+              Use <strong>Status</strong>, <strong>Stores</strong>, and <strong>Updated</strong> to narrow the
+              list. Only discounts that include your assigned locations are shown. Search by title or amount when
+              needed.
+            </p>
+          </WorkflowStep>
+
+          <WorkflowStep
+            step={4}
+            title="Review row details (no edit or delete)"
+            mockup={
+              <AppMockup title="Read-only row">
+                <MockDiscountRowReadOnly title="Selected discount row" amount="20%" />
+                <p className="text-muted-foreground mt-2 text-[10px] leading-relaxed">
+                  No checkboxes, Edit column, or delete actions on manager accounts.
+                </p>
+              </AppMockup>
+            }
+          >
+            <p>
+              Read each row&apos;s title, amount, store locations, and schedule dates. There is no edit panel or
+              delete button — contact an admin if a live offer must change.
+            </p>
+          </WorkflowStep>
+
+          <WorkflowStep
+            step={5}
+            title="Refresh when you need fresh data"
+            mockup={
+              <AppMockup title="Sidebar — Session">
+                <div className="text-[10px]">
+                  <p className="text-muted-foreground mb-2 font-semibold tracking-widest uppercase">Session</p>
+                  <div className="text-muted-foreground mb-1 flex items-center gap-1.5 rounded-md bg-primary/[0.06] px-2 py-1.5">
+                    <RefreshCwIcon className="size-3.5" />
+                    <span>Refresh</span>
+                  </div>
+                  <div className="text-muted-foreground flex items-center gap-1.5 rounded-md px-2 py-1.5">
+                    <LogOutIcon className="size-3.5" />
+                    <span>Logout</span>
+                  </div>
+                </div>
+              </AppMockup>
+            }
+          >
+            <p>
+              On Live discounts, use <strong>Refresh</strong> at the bottom of the sidebar to reload from Treez.
+              Use <strong>Logout</strong> when you are finished.
+            </p>
+          </WorkflowStep>
+        </ol>
+      </section>
+
+      <section className="space-y-8 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
+              2 — My profile
+            </h3>
+            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              See your account details and which stores, locations, and promo documents you can access.
+            </p>
+          </div>
+          <GuideLink href="/dashboard/users">Open My profile</GuideLink>
+        </div>
+
+        <AppMockup title="My profile">
+          <div className="flex gap-3">
+            <MockManagerSidebarNav active="profile" hasSalesPromo={hasSalesPromo} />
+            <div className="min-w-0 flex-1 space-y-2 text-[10px]">
+              <p>
+                <span className="text-muted-foreground">Name · </span>
+                <span className="font-medium">Your name</span>
+              </p>
+              <p>
+                <span className="text-muted-foreground">Role · </span>
+                <span className="font-medium">Manager (view only)</span>
+              </p>
+              <p>
+                <span className="text-muted-foreground">Locations · </span>
+                <span>Assigned store names</span>
+              </p>
+              {hasSalesPromo ? (
+                <p>
+                  <span className="text-muted-foreground">Sales Promo · </span>
+                  <span>Shared document links</span>
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </AppMockup>
+
+        <ol className="space-y-8">
+          <WorkflowStep
+            step={1}
+            title="Open My profile"
+            mockup={
+              <AppMockup title="Workspace">
+                <MockManagerSidebarNav active="profile" hasSalesPromo={hasSalesPromo} />
+              </AppMockup>
+            }
+          >
+            <p>
+              Under <strong>Workspace → My profile</strong>, review your email, assigned stores, and store
+              locations. Ask an admin to update assignments if something looks wrong.
+            </p>
+          </WorkflowStep>
+
+          <WorkflowStep
+            step={2}
+            title="Open shared Sales Promo from your profile"
+            mockup={
+              <AppMockup title="Promo links on profile">
+                <span className="border-border/80 inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-[9px]">
+                  <MegaphoneIcon className="size-3" />
+                  Summer promo script
+                </span>
+              </AppMockup>
+            }
+          >
+            <p>
+              {hasSalesPromo
+                ? "Any Sales Promo documents shared with you appear as links on your profile. Click one to open it in read-only mode."
+                : "When an admin shares a promo document, a link will appear here and Sales Promo will show in your sidebar."}
+            </p>
+          </WorkflowStep>
+        </ol>
+      </section>
+
+      {hasSalesPromo ? (
+        <section className="space-y-8 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
+                3 — Sales Promo (read only)
+              </h3>
+              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                Read promo scripts and documents an admin shared with your account.
+              </p>
+            </div>
+            <GuideLink href="/dashboard/sales-promo">Open Sales Promo</GuideLink>
+          </div>
+
+          <AppMockup title="Sales Promo — view only">
+            <div className="flex gap-3">
+              <MockManagerSidebarNav active="promo" hasSalesPromo />
+              <div className="min-w-0 flex-1">
+                <p className="mb-2 text-[10px] font-semibold">Shared promo document</p>
+                <div className="border-border/80 bg-muted/25 rounded-lg border px-3 py-4 text-[9px] text-muted-foreground">
+                  Document content — read only. No toolbar or save controls.
+                </div>
+              </div>
+            </div>
+          </AppMockup>
+
+          <ol className="space-y-8">
+            <WorkflowStep
+              step={1}
+              title="Open Sales Promo"
+              mockup={
+                <AppMockup title="Sidebar">
+                  <MockManagerSidebarNav active="promo" hasSalesPromo />
+                </AppMockup>
+              }
+            >
+              <p>
+                Choose <strong>Sales Promo</strong> under Workspace, or use a link from My profile. You only
+                see documents explicitly shared with you.
+              </p>
+            </WorkflowStep>
+
+            <WorkflowStep
+              step={2}
+              title="Read the document"
+              mockup={
+                <AppMockup title="Read-only editor">
+                  <div className="border-border/80 bg-muted/30 mb-2 border-b px-2 py-1.5 text-[8px]">
+                    View only — ask an admin if changes are needed.
+                  </div>
+                  <div className="text-muted-foreground px-2 py-6 text-[9px]">Promo content…</div>
+                </AppMockup>
+              }
+            >
+              <p>
+                Scroll and read the content. You cannot edit, upload images, or rename the document. Contact an
+                admin for updates.
+              </p>
+            </WorkflowStep>
+          </ol>
+        </section>
+      ) : null}
+
+      <Callout title="Need a change?">
+        <p>
+          Managers cannot edit live discounts, create drafts, publish to Treez, or change user accounts. Email{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-primary hover:underline">
+            {SUPPORT_EMAIL}
+          </a>{" "}
+          or ask your administrator.
+        </p>
+      </Callout>
+    </>
+  )
+}
+
 function MockBulkToolbar({ variant }: { variant: "starter" | "draft" }) {
   if (variant === "starter") {
     return (
@@ -282,6 +678,7 @@ function WorkflowStep({
 export function DashboardHelpPage() {
   const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("idiscountflow — support request")}`
   const [profile, setProfile] = React.useState<ProfileRow | null>(null)
+  const [hasSalesPromo, setHasSalesPromo] = React.useState(false)
 
   React.useEffect(() => {
     let cancelled = false
@@ -291,8 +688,15 @@ export function DashboardHelpPage() {
           credentials: "same-origin",
           cache: "no-store",
         })
-        const j = (await res.json()) as { ok?: boolean; profile?: ProfileRow | null }
-        if (!cancelled && j.ok && j.profile) setProfile(j.profile)
+        const j = (await res.json()) as {
+          ok?: boolean
+          profile?: ProfileRow | null
+          sharedSalesPromoDocuments?: { id: string }[]
+        }
+        if (!cancelled && j.ok && j.profile) {
+          setProfile(j.profile)
+          setHasSalesPromo((j.sharedSalesPromoDocuments?.length ?? 0) > 0)
+        }
       } catch {
         /* non-fatal */
       }
@@ -364,43 +768,27 @@ export function DashboardHelpPage() {
       </div>
 
       <div className={cn(PAGE_MAX, "flex flex-1 flex-col gap-12 py-8 md:py-10 lg:py-11")}>
+        {isManager ? (
+          <ManagerHelpWorkflows hasSalesPromo={hasSalesPromo} />
+        ) : (
+          <>
         <section className="space-y-6">
           <div className="space-y-2">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               How to use idiscountflow
             </h2>
             <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground md:text-[15px]">
-              {isManager ? (
-                <>
-                  Manager accounts are <strong className="text-foreground">view only</strong>. Browse live
-                  percent discounts for your assigned store locations and open Sales Promo documents shared
-                  with you. Editing, drafts, publishing, and user management require an admin.
-                </>
-              ) : (
-                <>
-                  Sign in with the credentials your administrator gave you. There are two main workflows:
-                  manage what is <strong className="text-foreground">live in Treez today</strong>, or prepare
-                  a <strong className="text-foreground">new month</strong> in Draft Discounts and publish when
-                  you are ready.
-                </>
-              )}
+              Sign in with the credentials your administrator gave you. There are two main workflows: manage
+              what is <strong className="text-foreground">live in Treez today</strong>, or prepare a{" "}
+              <strong className="text-foreground">new month</strong> in Draft Discounts and publish when you
+              are ready.
             </p>
           </div>
 
-          <Callout title={isManager ? "Manager — view only access" : "Sign in first"}>
+          <Callout title="Sign in first">
             <p>
-              {isManager ? (
-                <>
-                  Open <strong>Live discounts</strong> to browse offers for your assigned locations. Open{" "}
-                  <strong>My profile</strong> to see your store access and any shared Sales Promo documents.
-                  You cannot edit discounts, create drafts, or manage other users. Ask an admin for changes.
-                </>
-              ) : (
-                <>
-                  Open the login page and use your work email and password. If you cannot sign in, ask your
-                  administrator to create or reset your account on the <strong>Users</strong> page.
-                </>
-              )}
+              Open the login page and use your work email and password. If you cannot sign in, ask your
+              administrator to create or reset your account on the <strong>Users</strong> page.
             </p>
           </Callout>
         </section>
@@ -409,14 +797,10 @@ export function DashboardHelpPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-2">
               <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
-                {isManager
-                  ? "Workflow — Browse live discounts (view only)"
-                  : "Workflow A — Update or remove live discounts"}
+                Workflow A — Update or remove live discounts
               </h3>
               <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                {isManager
-                  ? "Use this to review active percent discounts for your assigned store locations."
-                  : "Use this when you need to change discounts that are already running in Treez right now."}
+                Use this when you need to change discounts that are already running in Treez right now.
               </p>
             </div>
             <GuideLink href="/dashboard">Open Live discounts</GuideLink>
@@ -474,59 +858,25 @@ export function DashboardHelpPage() {
 
             <WorkflowStep
               step={3}
-              title={isManager ? "Review details" : "Edit or delete"}
+              title="Edit or delete"
               mockup={
-                <AppMockup title={isManager ? "Discount row (read only)" : "Row actions"}>
+                <AppMockup title="Row actions">
                   <MockDiscountRow title="Selected discount row" amount="20%" />
                   <p className="text-muted-foreground mt-2 text-[10px]">
-                    {isManager
-                      ? "Managers see title, amount, stores, and dates. Edit and delete are not available."
-                      : "Edit opens the side panel. Delete asks for confirmation before removing from Treez."}
+                    Edit opens the side panel. Delete asks for confirmation before removing from Treez.
                   </p>
                 </AppMockup>
               }
             >
-              {isManager ? (
-                <p>
-                  Scan each row for title, amount, store locations, and schedule dates. Manager accounts
-                  cannot open the edit panel or delete discounts — contact an admin when a live offer needs
-                  to change.
-                </p>
-              ) : (
-                <p>
-                  Open a row to <strong>edit</strong> fields and save back to Treez, or use{" "}
-                  <strong>delete</strong> to remove it from live discounts. Changes apply to Treez immediately
-                  — there is no draft step for this workflow.
-                </p>
-              )}
+              <p>
+                Open a row to <strong>edit</strong> fields and save back to Treez, or use{" "}
+                <strong>delete</strong> to remove it from live discounts. Changes apply to Treez immediately
+                — there is no draft step for this workflow.
+              </p>
             </WorkflowStep>
           </ol>
         </section>
 
-        {isManager ? (
-          <section className="space-y-6 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-7">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
-                  My profile &amp; Sales Promo
-                </h3>
-                <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                  See your assigned stores and locations, and open any Sales Promo documents shared with your
-                  account.
-                </p>
-              </div>
-              <GuideLink href="/dashboard/users">Open My profile</GuideLink>
-            </div>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Under <strong>Workspace → My profile</strong> you can review your name, email, store access, and
-              shared promo links. Sales Promo appears in the sidebar only when an admin has shared at least one
-              document with you. Use <strong>Refresh</strong> in the sidebar on Live discounts to reload data, or{" "}
-              <strong>Logout</strong> when you are finished.
-            </p>
-          </section>
-        ) : null}
-
-        {isManager ? null : (
         <section className="space-y-8 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-2">
@@ -702,29 +1052,28 @@ export function DashboardHelpPage() {
             </ul>
           </Callout>
         </section>
-        )}
 
-        {isManager ? null : (
-          <section className="rounded-2xl border border-dashed border-border/80 bg-muted/20 px-5 py-6 md:px-7">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">Need more detail?</h3>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Column-level reference and Sales Promo guides live in the extended documentation.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0 gap-1.5"
-                render={<Link href="/dashboard/how-to-use" />}
-              >
-                Extended guides
-                <ArrowUpRightIcon className="size-3.5" aria-hidden />
-              </Button>
+        <section className="rounded-2xl border border-dashed border-border/80 bg-muted/20 px-5 py-6 md:px-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Need more detail?</h3>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Column-level reference and Sales Promo guides live in the extended documentation.
+              </p>
             </div>
-          </section>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1.5"
+              render={<Link href="/dashboard/how-to-use" />}
+            >
+              Extended guides
+              <ArrowUpRightIcon className="size-3.5" aria-hidden />
+            </Button>
+          </div>
+        </section>
+          </>
         )}
       </div>
     </div>
