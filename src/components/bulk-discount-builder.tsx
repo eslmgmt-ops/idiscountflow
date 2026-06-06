@@ -721,9 +721,18 @@ export function BulkDiscountBuilder({
                 {mode === "draft" ? "Draft bulk discounts" : "Import database"}
               </h1>
               {mode === "create" ? (
-                <p className="text-sm text-muted-foreground">
-                  {`Add multiple discounts at once. ${validRowsCount > 0 ? `${validRowsCount} valid row${validRowsCount > 1 ? "s" : ""} ready to create.` : ""}`}
-                </p>
+                <div className="border-border/80 bg-muted/25 max-w-2xl rounded-lg border px-4 py-3 text-sm">
+                  <p className="font-medium text-foreground">Save as draft to manage everything</p>
+                  <p className="text-muted-foreground mt-1 leading-relaxed">
+                    Build your starting grid here, then click{" "}
+                    <span className="font-medium text-foreground">Save draft</span>. The draft editor
+                    opens with full controls — import live discounts, publish to Treez, remove rows,
+                    schedule auto-publish, and undo removals before publish.
+                  </p>
+                  <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+                    Create in Treez, row delete, and live import are not available on this page by design.
+                  </p>
+                </div>
               ) : null}
               <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
                 <div className="flex min-w-[200px] max-w-md flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
@@ -814,27 +823,29 @@ export function BulkDiscountBuilder({
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2 xl:pt-1">
-              <ActionTooltip label="Replace the grid with active percent discounts currently in Treez (with confirmation)." side="top">
-                <Button
-                  type="button"
-                  onClick={() => setImportLiveConfirmOpen(true)}
-                  variant="outline"
-                  className="h-9 gap-2"
-                  disabled={loading || loadingData || importingLive || savingDraft}
-                >
-                  {importingLive ? (
-                    <>
-                      <Loader2Icon className="size-4 animate-spin" />
-                      Loading…
-                    </>
-                  ) : (
-                    <>
-                      <DownloadIcon className="size-4" />
-                      Import live %
-                    </>
-                  )}
-                </Button>
-              </ActionTooltip>
+              {mode === "draft" ? (
+                <ActionTooltip label="Replace the grid with active percent discounts currently in Treez (with confirmation)." side="top">
+                  <Button
+                    type="button"
+                    onClick={() => setImportLiveConfirmOpen(true)}
+                    variant="outline"
+                    className="h-9 gap-2"
+                    disabled={loading || loadingData || importingLive || savingDraft}
+                  >
+                    {importingLive ? (
+                      <>
+                        <Loader2Icon className="size-4 animate-spin" />
+                        Loading…
+                      </>
+                    ) : (
+                      <>
+                        <DownloadIcon className="size-4" />
+                        Import live %
+                      </>
+                    )}
+                  </Button>
+                </ActionTooltip>
+              ) : null}
               <ActionTooltip label="Append a new empty row to the bulk table." side="top">
                 <Button
                   onClick={addRow}
@@ -903,28 +914,6 @@ export function BulkDiscountBuilder({
                     </Button>
                   </ActionTooltip>
                 </>
-              ) : null}
-              {mode === "create" ? (
-                <ActionTooltip label="Create every valid row in Treez as a new service discount." side="top">
-                  <Button
-                    onClick={() => void handleBulkCreate()}
-                    disabled={loading || validRowsCount === 0 || loadingData}
-                    className="h-9 gap-2 bg-[#1A1E26] hover:bg-[#1A1E26]/90 text-white"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2Icon className="size-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <CheckIcon className="size-4" />
-                        Create {validRowsCount > 0 ? `${validRowsCount} ` : ""}Discount
-                        {validRowsCount !== 1 ? "s" : ""}
-                      </>
-                    )}
-                  </Button>
-                </ActionTooltip>
               ) : null}
             </div>
           </div>
@@ -1019,9 +1008,9 @@ export function BulkDiscountBuilder({
                       <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
                         Collections *
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-12">
-                        
-                      </th>
+                      {mode === "draft" ? (
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-12" />
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -1386,25 +1375,27 @@ export function BulkDiscountBuilder({
                             </PopoverContent>
                           </Popover>
                         </td>
-                        <td className="px-2 py-2">
-                          <ActionTooltip label="Remove this row from the grid." side="left">
-                            <Button
-                              onClick={() => {
-                                if (rows.length === 1) {
-                                  toast.error("You must have at least one row")
-                                  return
-                                }
-                                setRowPendingDelete(row.id)
-                              }}
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              disabled={loading}
-                            >
-                              <Trash2Icon className="size-3.5" />
-                            </Button>
-                          </ActionTooltip>
-                        </td>
+                        {mode === "draft" ? (
+                          <td className="px-2 py-2">
+                            <ActionTooltip label="Remove this row from the grid." side="left">
+                              <Button
+                                onClick={() => {
+                                  if (rows.length === 1) {
+                                    toast.error("You must have at least one row")
+                                    return
+                                  }
+                                  setRowPendingDelete(row.id)
+                                }}
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                disabled={loading}
+                              >
+                                <Trash2Icon className="size-3.5" />
+                              </Button>
+                            </ActionTooltip>
+                          </td>
+                        ) : null}
                       </tr>
                     ))}
                   </tbody>
