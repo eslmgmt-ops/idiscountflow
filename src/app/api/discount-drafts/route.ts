@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { rejectIfManager } from "@/lib/auth/permissions"
 import { getCurrentProfile } from "@/lib/auth/profile"
 import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
-import { parseDraftStorage } from "@/lib/bulk-discount-io"
+import { draftRowsPayloadForDb, parseDraftStorage } from "@/lib/bulk-discount-io"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 import { tenantFilterOrClause } from "@/lib/tenant-data-scope"
 
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     typeof body.title === "string" && body.title.trim()
       ? body.title.trim().slice(0, 200)
       : "Untitled draft"
-  const rows = Array.isArray(body.rows) ? body.rows : []
+  const rows = draftRowsPayloadForDb(body.rows) ?? { rows: [], pendingTreezDeletes: [] }
 
   let admin
   try {

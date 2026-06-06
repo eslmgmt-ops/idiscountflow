@@ -302,9 +302,19 @@ export function BulkDiscountBuilder({
     if (treezId && removed) {
       const label = removed.title.trim() || removed.customTitle.trim() || treezId
       const storedRow = serializeBulkRows([removed])[0]!
+      const entry: PendingTreezDelete = {
+        treezDiscountId: treezId,
+        title: label,
+        row: storedRow,
+      }
       setPendingTreezDeletes((prev) => {
-        if (prev.some((p) => p.treezDiscountId === treezId)) return prev
-        return [...prev, { treezDiscountId: treezId, title: label, row: storedRow }]
+        const idx = prev.findIndex((p) => p.treezDiscountId === treezId)
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = entry
+          return next
+        }
+        return [...prev, entry]
       })
     }
     setPublishSelection((prev) => {
@@ -317,30 +327,32 @@ export function BulkDiscountBuilder({
   }
 
   const restorePendingDelete = React.useCallback((treezDiscountId: string) => {
-    let restoredRow: BulkDiscountRow | null = null
-    let restoredTitle = ""
-
     setPendingTreezDeletes((prev) => {
       const pending = prev.find((p) => p.treezDiscountId === treezDiscountId)
-      if (!pending) return prev
-      restoredRow = rowFromPendingDelete(pending)
-      if (!restoredRow) return prev
-      restoredTitle = pending.title?.trim() || restoredRow.title.trim() || treezDiscountId
+      if (!pending) {
+        toast.error("Cannot restore this row", {
+          description: "This removal is no longer queued.",
+        })
+        return prev
+      }
+
+      const restored = rowFromPendingDelete(pending)
+      if (!restored) {
+        toast.error("Cannot restore this row", {
+          description: "No saved row snapshot. Re-import from live discounts if needed.",
+        })
+        return prev
+      }
+
+      setRows((rowsPrev) => {
+        if (rowsPrev.some((r) => r.id === restored.id)) return rowsPrev
+        return [...rowsPrev, recomputeRowMeta(restored)]
+      })
+      toast.success(
+        `Restored "${pending.title?.trim() || restored.title.trim() || treezDiscountId}"`,
+      )
       return prev.filter((p) => p.treezDiscountId !== treezDiscountId)
     })
-
-    if (!restoredRow) {
-      toast.error("Cannot restore this row", {
-        description: "No saved row snapshot. Re-import from live discounts if needed.",
-      })
-      return
-    }
-
-    setRows((prev) => {
-      if (prev.some((r) => r.id === restoredRow!.id)) return prev
-      return [...prev, recomputeRowMeta(restoredRow!)]
-    })
-    toast.success(`Restored "${restoredTitle}"`)
   }, [])
 
   const confirmRemoveRow = () => {
@@ -393,6 +405,7 @@ export function BulkDiscountBuilder({
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "Save failed")
+        if (data.draft?.rows) applyDraftFromStorage(data.draft.rows)
         toast.success("Draft saved")
         window.dispatchEvent(new CustomEvent("bulk-drafts-changed"))
       } else {

@@ -274,10 +274,22 @@ export function parseDraftStorage(raw: unknown): {
 export function serializeDraftStorage(
   rows: BulkDiscountRow[],
   pendingTreezDeletes: PendingTreezDelete[] = [],
-): BulkDiscountRowStored[] | BulkDraftStorage {
-  const serialized = serializeBulkRows(rows)
-  if (pendingTreezDeletes.length === 0) return serialized
-  return { rows: serialized, pendingTreezDeletes }
+): BulkDraftStorage {
+  return {
+    rows: serializeBulkRows(rows),
+    pendingTreezDeletes: pendingTreezDeletes.map((p) => ({
+      treezDiscountId: p.treezDiscountId,
+      title: p.title,
+      row: p.row,
+    })),
+  }
+}
+
+/** Normalize API/client draft `rows` payloads for jsonb storage (array legacy or object). */
+export function draftRowsPayloadForDb(raw: unknown): BulkDraftStorage | null {
+  if (raw === undefined || raw === null) return null
+  const parsed = parseDraftStorage(raw)
+  return serializeDraftStorage(parsed.rows, parsed.pendingTreezDeletes)
 }
 
 export function rowFromPendingDelete(pending: PendingTreezDelete): BulkDiscountRow | null {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { rejectIfManager } from "@/lib/auth/permissions"
 import { getCurrentProfile } from "@/lib/auth/profile"
+import { draftRowsPayloadForDb } from "@/lib/bulk-discount-io"
 import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 import { rowMatchesTenant } from "@/lib/tenant-data-scope"
@@ -107,8 +108,9 @@ export async function PATCH(
   if (typeof body.title === "string") {
     patch.title = body.title.trim().slice(0, 200) || "Untitled draft"
   }
-  if (Array.isArray(body.rows)) {
-    patch.rows = body.rows
+  if (body.rows !== undefined) {
+    const rowsPayload = draftRowsPayloadForDb(body.rows)
+    if (rowsPayload) patch.rows = rowsPayload
   }
 
   const { data, error } = await admin
