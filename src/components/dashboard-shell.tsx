@@ -67,7 +67,17 @@ const SIDEBAR_NAV = [
   },
 ] as const
 
-type NavDef = (typeof SIDEBAR_NAV)[number] | (typeof MORE_NAV)[number] | (typeof HELP_NAV)[number]
+const MANAGER_PROFILE_NAV = {
+  href: "/dashboard/users",
+  label: "My profile",
+  icon: UserCircleIcon,
+} as const
+
+type NavDef =
+  | (typeof SIDEBAR_NAV)[number]
+  | (typeof MORE_NAV)[number]
+  | (typeof HELP_NAV)[number]
+  | typeof MANAGER_PROFILE_NAV
 
 /** Soft left-rail active state; icon-collapsed mode keeps a solid chip for clarity. */
 const SIDEBAR_NAV_LINK_CLASS = cn(
@@ -95,12 +105,6 @@ const MOBILE_NAV = [
     icon: FileStackIcon,
   },
 ] as const
-
-const MANAGER_PROFILE_NAV = {
-  href: "/dashboard/users",
-  label: "My profile",
-  icon: UserCircleIcon,
-} as const
 
 function NavMenuItems({
   pathname,
