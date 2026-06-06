@@ -11,8 +11,10 @@ import {
   LayoutGridIcon,
   Loader2Icon,
   MegaphoneIcon,
+  UserCircleIcon,
   UsersIcon,
 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { LogoutSidebarMenuItem } from "@/components/logout-button"
 import {
@@ -94,27 +96,11 @@ const MOBILE_NAV = [
   },
 ] as const
 
-/** Managers: home, sales promo, help only (matches restricted sidebar). */
-const MOBILE_NAV_MANAGER = [
-  {
-    href: "/dashboard",
-    label: "Live discounts",
-    shortLabel: "Home",
-    icon: LayoutGridIcon,
-  },
-  {
-    href: "/dashboard/sales-promo",
-    label: "Sales Promo",
-    shortLabel: "Promo",
-    icon: MegaphoneIcon,
-  },
-  {
-    href: "/dashboard/help",
-    label: "Help",
-    shortLabel: "Help",
-    icon: HelpCircleIcon,
-  },
-] as const
+const MANAGER_PROFILE_NAV = {
+  href: "/dashboard/users",
+  label: "My profile",
+  icon: UserCircleIcon,
+} as const
 
 function NavMenuItems({
   pathname,
@@ -284,6 +270,7 @@ export function DashboardShell({
 }) {
   const pathname = usePathname() || ""
   const [accessProfile, setAccessProfile] = React.useState<ProfileRow | null>(null)
+  const [managerHasSalesPromo, setManagerHasSalesPromo] = React.useState(false)
 
   React.useEffect(() => {
     let cancelled = false
@@ -293,8 +280,15 @@ export function DashboardShell({
           credentials: "same-origin",
           cache: "no-store",
         })
-        const j = (await res.json()) as { ok?: boolean; profile?: ProfileRow | null }
-        if (!cancelled && j.ok && j.profile) setAccessProfile(j.profile)
+        const j = (await res.json()) as {
+          ok?: boolean
+          profile?: ProfileRow | null
+          sharedSalesPromoDocuments?: { id: string }[]
+        }
+        if (!cancelled && j.ok && j.profile) {
+          setAccessProfile(j.profile)
+          setManagerHasSalesPromo((j.sharedSalesPromoDocuments?.length ?? 0) > 0)
+        }
       } catch {
         /* non-fatal */
       }
@@ -311,15 +305,50 @@ export function DashboardShell({
     [isManager],
   )
 
-  const workspaceNavItems = React.useMemo(
-    () => (isManager ? [MORE_NAV[0]] : [...MORE_NAV]),
-    [isManager],
-  )
+  const workspaceNavItems = React.useMemo(() => {
+    if (!isManager) return [...MORE_NAV]
+    const items: NavDef[] = [MANAGER_PROFILE_NAV]
+    if (managerHasSalesPromo) items.push(MORE_NAV[0])
+    return items
+  }, [isManager, managerHasSalesPromo])
 
-  const mobileNavItems = React.useMemo(
-    () => (isManager ? MOBILE_NAV_MANAGER : MOBILE_NAV),
-    [isManager],
-  )
+  const mobileNavItems = React.useMemo(() => {
+    if (!isManager) return MOBILE_NAV
+    const items: {
+      href: string
+      label: string
+      shortLabel: string
+      icon: typeof LayoutGridIcon
+    }[] = [
+      {
+        href: "/dashboard",
+        label: "Live discounts",
+        shortLabel: "Home",
+        icon: LayoutGridIcon,
+      },
+      {
+        href: "/dashboard/users",
+        label: "My profile",
+        shortLabel: "Profile",
+        icon: UserCircleIcon,
+      },
+    ]
+    if (managerHasSalesPromo) {
+      items.push({
+        href: "/dashboard/sales-promo",
+        label: "Sales Promo",
+        shortLabel: "Promo",
+        icon: MegaphoneIcon,
+      })
+    }
+    items.push({
+      href: "/dashboard/help",
+      label: "Help",
+      shortLabel: "Help",
+      icon: HelpCircleIcon,
+    })
+    return items
+  }, [isManager, managerHasSalesPromo])
 
   const collapseForBulk =
     pathname === "/dashboard/discounts/bulk-upload" ||
@@ -339,6 +368,7 @@ export function DashboardShell({
       discountsNavItems={discountsNavItems}
       workspaceNavItems={workspaceNavItems}
       mobileNavItems={mobileNavItems}
+      managerHasSalesPromo={managerHasSalesPromo}
       sidebarOpen={open}
       onSidebarOpenChange={setOpen}
       headerActions={headerActions}
@@ -357,6 +387,7 @@ function DashboardShellInner({
   discountsNavItems,
   workspaceNavItems,
   mobileNavItems,
+  managerHasSalesPromo,
   sidebarOpen,
   onSidebarOpenChange,
   headerActions,
@@ -367,8 +398,14 @@ function DashboardShellInner({
   accessProfile: ProfileRow | null
   isManager: boolean
   discountsNavItems: readonly (typeof SIDEBAR_NAV)[number][]
-  workspaceNavItems: readonly (typeof MORE_NAV)[number][]
-  mobileNavItems: readonly (typeof MOBILE_NAV)[number][] | readonly (typeof MOBILE_NAV_MANAGER)[number][]
+  workspaceNavItems: readonly NavDef[]
+  mobileNavItems: readonly {
+    href: string
+    label: string
+    shortLabel: string
+    icon: typeof LayoutGridIcon
+  }[]
+  managerHasSalesPromo: boolean
   sidebarOpen: boolean
   onSidebarOpenChange: (open: boolean) => void
   headerActions?: React.ReactNode
@@ -384,7 +421,7 @@ function DashboardShellInner({
   )
 
   return (
-    <DashboardKBar managerMode={isManager}>
+    <DashboardKBar managerMode={isManager} managerHasSalesPromo={managerHasSalesPromo}>
       <SidebarProvider open={sidebarOpen} onOpenChange={onSidebarOpenChange}>
         <Sidebar collapsible="icon" variant="inset" className={SIDEBAR_SURFACE_CLASS}>
           <SidebarHeader className="border-b border-sidebar-border/80 p-3">
@@ -479,7 +516,16 @@ function DashboardShellInner({
                 Open or close the sidebar
               </TooltipContent>
             </Tooltip>
-            <div className="min-w-0 flex-1" aria-hidden />
+            <div className="min-w-0 flex-1">
+              {isManager ? (
+                <Badge
+                  variant="secondary"
+                  className="hidden h-6 shrink-0 px-2 text-[10px] font-semibold tracking-wide uppercase sm:inline-flex"
+                >
+                  View only
+                </Badge>
+              ) : null}
+            </div>
             <div className="flex shrink-0 items-center gap-2">
               <TenantSelector
                 tenants={tenantSession.tenants}

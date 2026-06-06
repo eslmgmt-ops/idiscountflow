@@ -1,7 +1,9 @@
 "use client"
 
 import type { ReactNode } from "react"
+import * as React from "react"
 import Link from "next/link"
+import type { ProfileRow } from "@/lib/auth/types"
 import { ActionTooltip } from "@/components/action-tooltip"
 import {
   ArrowUpRightIcon,
@@ -279,6 +281,28 @@ function WorkflowStep({
 
 export function DashboardHelpPage() {
   const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("idiscountflow — support request")}`
+  const [profile, setProfile] = React.useState<ProfileRow | null>(null)
+
+  React.useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/session/profile", {
+          credentials: "same-origin",
+          cache: "no-store",
+        })
+        const j = (await res.json()) as { ok?: boolean; profile?: ProfileRow | null }
+        if (!cancelled && j.ok && j.profile) setProfile(j.profile)
+      } catch {
+        /* non-fatal */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const isManager = profile?.role === "manager"
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -294,8 +318,9 @@ export function DashboardHelpPage() {
                 We&apos;re here to help
               </h1>
               <p className="max-w-xl text-sm leading-relaxed text-muted-foreground md:text-[15px] lg:text-base">
-                Questions about discounts, drafts, publishing, or access? Reach the MGWHOLDINGS team by
-                email. Use the guides below for day-to-day workflows in idiscountflow.
+                {isManager
+                  ? "View-only guide for browsing live discounts, your profile, and shared Sales Promo documents."
+                  : "Questions about discounts, drafts, publishing, or access? Reach the MGWHOLDINGS team by email. Use the guides below for day-to-day workflows in idiscountflow."}
               </p>
             </div>
 
@@ -345,17 +370,37 @@ export function DashboardHelpPage() {
               How to use idiscountflow
             </h2>
             <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground md:text-[15px]">
-              Sign in with the credentials your administrator gave you. There are two main workflows: manage
-              what is <strong className="text-foreground">live in Treez today</strong>, or prepare a{" "}
-              <strong className="text-foreground">new month</strong> in Draft Discounts and publish when you
-              are ready.
+              {isManager ? (
+                <>
+                  Manager accounts are <strong className="text-foreground">view only</strong>. Browse live
+                  percent discounts for your assigned store locations and open Sales Promo documents shared
+                  with you. Editing, drafts, publishing, and user management require an admin.
+                </>
+              ) : (
+                <>
+                  Sign in with the credentials your administrator gave you. There are two main workflows:
+                  manage what is <strong className="text-foreground">live in Treez today</strong>, or prepare
+                  a <strong className="text-foreground">new month</strong> in Draft Discounts and publish when
+                  you are ready.
+                </>
+              )}
             </p>
           </div>
 
-          <Callout title="Sign in first">
+          <Callout title={isManager ? "Manager — view only access" : "Sign in first"}>
             <p>
-              Open the login page and use your work email and password. If you cannot sign in, ask your
-              administrator to create or reset your account on the <strong>Users</strong> page.
+              {isManager ? (
+                <>
+                  Open <strong>Live discounts</strong> to browse offers for your assigned locations. Open{" "}
+                  <strong>My profile</strong> to see your store access and any shared Sales Promo documents.
+                  You cannot edit discounts, create drafts, or manage other users. Ask an admin for changes.
+                </>
+              ) : (
+                <>
+                  Open the login page and use your work email and password. If you cannot sign in, ask your
+                  administrator to create or reset your account on the <strong>Users</strong> page.
+                </>
+              )}
             </p>
           </Callout>
         </section>
@@ -364,10 +409,14 @@ export function DashboardHelpPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-2">
               <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
-                Workflow A — Update or remove live discounts
+                {isManager
+                  ? "Workflow — Browse live discounts (view only)"
+                  : "Workflow A — Update or remove live discounts"}
               </h3>
               <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                Use this when you need to change discounts that are already running in Treez right now.
+                {isManager
+                  ? "Use this to review active percent discounts for your assigned store locations."
+                  : "Use this when you need to change discounts that are already running in Treez right now."}
               </p>
             </div>
             <GuideLink href="/dashboard">Open Live discounts</GuideLink>
@@ -425,25 +474,59 @@ export function DashboardHelpPage() {
 
             <WorkflowStep
               step={3}
-              title="Edit or delete"
+              title={isManager ? "Review details" : "Edit or delete"}
               mockup={
-                <AppMockup title="Row actions">
+                <AppMockup title={isManager ? "Discount row (read only)" : "Row actions"}>
                   <MockDiscountRow title="Selected discount row" amount="20%" />
                   <p className="text-muted-foreground mt-2 text-[10px]">
-                    Edit opens the side panel. Delete asks for confirmation before removing from Treez.
+                    {isManager
+                      ? "Managers see title, amount, stores, and dates. Edit and delete are not available."
+                      : "Edit opens the side panel. Delete asks for confirmation before removing from Treez."}
                   </p>
                 </AppMockup>
               }
             >
-              <p>
-                Open a row to <strong>edit</strong> fields and save back to Treez, or use{" "}
-                <strong>delete</strong> to remove it from live discounts. Changes apply to Treez immediately
-                — there is no draft step for this workflow.
-              </p>
+              {isManager ? (
+                <p>
+                  Scan each row for title, amount, store locations, and schedule dates. Manager accounts
+                  cannot open the edit panel or delete discounts — contact an admin when a live offer needs
+                  to change.
+                </p>
+              ) : (
+                <p>
+                  Open a row to <strong>edit</strong> fields and save back to Treez, or use{" "}
+                  <strong>delete</strong> to remove it from live discounts. Changes apply to Treez immediately
+                  — there is no draft step for this workflow.
+                </p>
+              )}
             </WorkflowStep>
           </ol>
         </section>
 
+        {isManager ? (
+          <section className="space-y-6 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
+                  My profile &amp; Sales Promo
+                </h3>
+                <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                  See your assigned stores and locations, and open any Sales Promo documents shared with your
+                  account.
+                </p>
+              </div>
+              <GuideLink href="/dashboard/users">Open My profile</GuideLink>
+            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Under <strong>Workspace → My profile</strong> you can review your name, email, store access, and
+              shared promo links. Sales Promo appears in the sidebar only when an admin has shared at least one
+              document with you. Use <strong>Refresh</strong> in the sidebar on Live discounts to reload data, or{" "}
+              <strong>Logout</strong> when you are finished.
+            </p>
+          </section>
+        ) : null}
+
+        {isManager ? null : (
         <section className="space-y-8 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-2">
@@ -619,27 +702,30 @@ export function DashboardHelpPage() {
             </ul>
           </Callout>
         </section>
+        )}
 
-        <section className="rounded-2xl border border-dashed border-border/80 bg-muted/20 px-5 py-6 md:px-7">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">Need more detail?</h3>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Column-level reference and Sales Promo guides live in the extended documentation.
-              </p>
+        {isManager ? null : (
+          <section className="rounded-2xl border border-dashed border-border/80 bg-muted/20 px-5 py-6 md:px-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Need more detail?</h3>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Column-level reference and Sales Promo guides live in the extended documentation.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                render={<Link href="/dashboard/how-to-use" />}
+              >
+                Extended guides
+                <ArrowUpRightIcon className="size-3.5" aria-hidden />
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0 gap-1.5"
-              render={<Link href="/dashboard/how-to-use" />}
-            >
-              Extended guides
-              <ArrowUpRightIcon className="size-3.5" aria-hidden />
-            </Button>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     </div>
   )

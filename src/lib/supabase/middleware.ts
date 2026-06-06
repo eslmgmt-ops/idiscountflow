@@ -44,15 +44,16 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle()
 
     if ((prof?.role as string | undefined) === "manager") {
-      const blockedPrefixes = [
-        "/dashboard/discounts/bulk-upload",
-        "/dashboard/discounts/drafts",
-        "/dashboard/discounts/edit-drafts",
-        "/dashboard/discounts/create",
-        "/dashboard/users",
-      ]
-      const hit = blockedPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))
-      if (hit) {
+      const allowed =
+        pathname === "/dashboard" ||
+        pathname === "/dashboard/" ||
+        pathname === "/dashboard/users" ||
+        pathname.startsWith("/dashboard/users/") ||
+        pathname === "/dashboard/help" ||
+        pathname.startsWith("/dashboard/help/") ||
+        pathname === "/dashboard/sales-promo" ||
+        pathname.startsWith("/dashboard/sales-promo/")
+      if (!allowed) {
         return NextResponse.redirect(new URL("/dashboard", request.url))
       }
     }

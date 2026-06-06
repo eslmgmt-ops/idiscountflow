@@ -25,6 +25,8 @@ export type ProfileWithShares = ProfileRow & {
   shared_sales_promo_document_ids: string[]
 }
 
+export type SharedSalesPromoDoc = { id: string; title: string }
+
 export async function attachPromoShareIds(
   admin: SupabaseClient,
   users: ProfileRow[],

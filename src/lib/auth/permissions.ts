@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server"
 import type { AppRole, ProfileRow } from "@/lib/auth/types"
 
+/** Managers may browse assigned data but cannot mutate discounts, drafts, users, or promo docs. */
+export function isViewOnlyRole(role: AppRole | string | undefined): boolean {
+  return role === "manager"
+}
+
 /** Create promo docs, list everyone’s docs, manage shares, delete docs. */
 export function canManageSalesPromo(actor: ProfileRow): boolean {
   return actor.role === "master_admin" || actor.role === "admin"
@@ -45,7 +50,7 @@ export function rejectIfManager(
 ): NextResponse | null {
   const u = rejectUnlessAuthenticated(actor)
   if (u) return u
-  if (actor!.role === "manager") {
+  if (isViewOnlyRole(actor!.role)) {
     return NextResponse.json(
       { ok: false, error: "Managers have read-only access" },
       { status: 403 },

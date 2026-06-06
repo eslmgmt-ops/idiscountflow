@@ -20,6 +20,7 @@ import {
   LayoutGridIcon,
   MegaphoneIcon,
   SearchIcon,
+  UserCircleIcon,
   UsersIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -76,7 +77,13 @@ function DashboardKBarResults() {
   )
 }
 
-function RegisterKBarActions({ managerMode }: { managerMode: boolean }) {
+function RegisterKBarActions({
+  managerMode,
+  managerHasSalesPromo = false,
+}: {
+  managerMode: boolean
+  managerHasSalesPromo?: boolean
+}) {
   const router = useRouter()
 
   const actions = React.useMemo<Action[]>(() => {
@@ -120,6 +127,15 @@ function RegisterKBarActions({ managerMode }: { managerMode: boolean }) {
         perform: () => router.push("/dashboard/users"),
       },
       {
+        id: "nav-profile",
+        name: "My profile",
+        subtitle: "Your account and store access",
+        section: "Navigation",
+        keywords: "profile account manager me settings",
+        icon: <UserCircleIcon aria-hidden />,
+        perform: () => router.push("/dashboard/users"),
+      },
+      {
         id: "nav-help",
         name: "Help & support",
         subtitle: "Contact and shortcuts",
@@ -131,11 +147,12 @@ function RegisterKBarActions({ managerMode }: { managerMode: boolean }) {
     ]
 
     if (managerMode) {
-      const keep = new Set(["nav-discounts", "nav-sales-promo", "nav-help"])
+      const keep = new Set(["nav-discounts", "nav-profile", "nav-help"])
+      if (managerHasSalesPromo) keep.add("nav-sales-promo")
       return all.filter((a) => keep.has(a.id))
     }
     return all
-  }, [router, managerMode])
+  }, [router, managerMode, managerHasSalesPromo])
 
   useRegisterActions(actions, [actions])
 
@@ -174,9 +191,11 @@ export function DashboardKBarTrigger({ className }: { className?: string }) {
 export function DashboardKBar({
   children,
   managerMode = false,
+  managerHasSalesPromo = false,
 }: {
   children: React.ReactNode
   managerMode?: boolean
+  managerHasSalesPromo?: boolean
 }) {
   return (
     <KBarProvider
@@ -185,7 +204,10 @@ export function DashboardKBar({
         animations: { enterMs: 120, exitMs: 80 },
       }}
     >
-      <RegisterKBarActions managerMode={managerMode} />
+      <RegisterKBarActions
+        managerMode={managerMode}
+        managerHasSalesPromo={managerHasSalesPromo}
+      />
       {children}
       <KBarPortal>
         <KBarPositioner className="fixed inset-0 z-[200] flex justify-center bg-foreground/25 p-4 pt-[14vh] backdrop-blur-[2px]">

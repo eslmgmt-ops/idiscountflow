@@ -245,9 +245,16 @@ function DiscountDashboardContent({
     <div className="flex flex-1 flex-col gap-6 p-4 pt-6 lg:p-8 lg:pt-8">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            Discount manager
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+              Discount manager
+            </h1>
+            {isManager ? (
+              <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/50 px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                View only
+              </span>
+            ) : null}
+          </div>
           {activeTenantLabel ? (
             <p className="mt-2 max-w-2xl text-xs text-muted-foreground">
               <span className="font-medium text-foreground">Store: </span>

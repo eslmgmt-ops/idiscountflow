@@ -805,12 +805,20 @@ function PromoDocWorkspace({ docId }: { docId: string }) {
                 Loading…
               </div>
             ) : (
-              <SalesPromoEditor
-                docId={docId}
-                initialContent={docContent}
-                readOnly={!canManage}
-                onSaveStatus={(s) => setHeaderSave(s)}
-              />
+              <>
+                {!canManage ? (
+                  <div className="border-border/80 bg-muted/30 text-muted-foreground border-b px-4 py-2.5 text-xs leading-relaxed">
+                    <span className="font-medium text-foreground">View only.</span> You can read this promo
+                    document but cannot edit it. Ask an admin if changes are needed.
+                  </div>
+                ) : null}
+                <SalesPromoEditor
+                  docId={docId}
+                  initialContent={docContent}
+                  readOnly={!canManage}
+                  onSaveStatus={(s) => setHeaderSave(s)}
+                />
+              </>
             )}
           </div>
         </main>

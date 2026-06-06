@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { canCreateRole } from "@/lib/auth/permissions"
+import { canCreateRole, rejectIfManager } from "@/lib/auth/permissions"
 import { getCurrentProfile, normalizeProfileRow } from "@/lib/auth/profile"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 import { attachPromoShareIds, syncManagerPromoShares } from "@/lib/manager-promo-shares"
@@ -70,6 +70,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const actor = await getCurrentProfile()
+  const denied = rejectIfManager(actor)
+  if (denied) return denied
   if (!actor) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
   }

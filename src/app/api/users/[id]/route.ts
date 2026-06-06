@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import {
   canConfigureManagerAccess,
   canDeleteUser,
+  rejectIfManager,
 } from "@/lib/auth/permissions"
 import { getCurrentProfile, getProfileForUser, normalizeProfileRow } from "@/lib/auth/profile"
 import { syncManagerPromoShares } from "@/lib/manager-promo-shares"
@@ -18,6 +19,8 @@ export async function PATCH(
   ctx: { params: Promise<{ id: string }> },
 ) {
   const actor = await getCurrentProfile()
+  const denied = rejectIfManager(actor)
+  if (denied) return denied
   if (!actor) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
   }
@@ -197,6 +200,8 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string }> },
 ) {
   const actor = await getCurrentProfile()
+  const denied = rejectIfManager(actor)
+  if (denied) return denied
   if (!actor) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
   }
