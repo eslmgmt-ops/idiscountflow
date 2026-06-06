@@ -31,10 +31,13 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
   defaultEmptyRow,
-  deserializeBulkRows,
+  parseDraftStorage,
   recomputeRowMeta,
+  rowFromPendingDelete,
   serializeBulkRows,
+  serializeDraftStorage,
   validateBulkRow,
+  type PendingTreezDelete,
   type StoreEntity,
   type ProductCollection,
   type BulkDiscountRow,
@@ -90,6 +93,7 @@ export function BulkDiscountBuilder({
   const [collections, setCollections] = React.useState<ProductCollection[]>([])
   const [loadingData, setLoadingData] = React.useState(true)
   const [rows, setRows] = React.useState<BulkDiscountRow[]>(() => [defaultEmptyRow()])
+  const [pendingTreezDeletes, setPendingTreezDeletes] = React.useState<PendingTreezDelete[]>([])
   const [storeSearch, setStoreSearch] = React.useState<Record<string, string>>({})
   const [collectionSearch, setCollectionSearch] = React.useState<Record<string, string>>({})
   const [results, setResults] = React.useState<{
@@ -137,6 +141,7 @@ export function BulkDiscountBuilder({
     }
     void fetchStoresAndCollections()
     setRows([defaultEmptyRow()])
+    setPendingTreezDeletes([])
     setResults(null)
     setPublishSelection(new Set())
   })
@@ -156,9 +161,10 @@ export function BulkDiscountBuilder({
         if (cancelled) return
         const d = data.draft as { title?: string; rows?: unknown }
         if (typeof d.title === "string") setDraftTitle(d.title)
-        const loaded = deserializeBulkRows(d.rows)
-        setRows(loaded)
-        const unpublished = loaded.filter((r) => !r.publishedAt)
+        const loaded = parseDraftStorage(d.rows)
+        setRows(loaded.rows)
+        setPendingTreezDeletes(loaded.pendingTreezDeletes)
+        const unpublished = loaded.rows.filter((r) => !r.publishedAt)
         const scheduleDates = [
           ...new Set(
             unpublished
@@ -280,10 +286,26 @@ export function BulkDiscountBuilder({
     [rows],
   )
 
+  const applyDraftFromStorage = React.useCallback((raw: unknown) => {
+    const parsed = parseDraftStorage(raw)
+    setRows(parsed.rows)
+    setPendingTreezDeletes(parsed.pendingTreezDeletes)
+  }, [])
+
   const removeRow = (id: string) => {
     if (rows.length === 1) {
       toast.error("You must have at least one row")
-      return
+      return null
+    }
+    const removed = rows.find((row) => row.id === id)
+    const treezId = (removed?.treezDiscountId ?? "").trim()
+    if (treezId && removed) {
+      const label = removed.title.trim() || removed.customTitle.trim() || treezId
+      const storedRow = serializeBulkRows([removed])[0]!
+      setPendingTreezDeletes((prev) => {
+        if (prev.some((p) => p.treezDiscountId === treezId)) return prev
+        return [...prev, { treezDiscountId: treezId, title: label, row: storedRow }]
+      })
     }
     setPublishSelection((prev) => {
       const n = new Set(prev)
@@ -291,12 +313,54 @@ export function BulkDiscountBuilder({
       return n
     })
     setRows((prev) => prev.filter((row) => row.id !== id))
+    return treezId || null
   }
+
+  const restorePendingDelete = React.useCallback((treezDiscountId: string) => {
+    let restoredRow: BulkDiscountRow | null = null
+    let restoredTitle = ""
+
+    setPendingTreezDeletes((prev) => {
+      const pending = prev.find((p) => p.treezDiscountId === treezDiscountId)
+      if (!pending) return prev
+      restoredRow = rowFromPendingDelete(pending)
+      if (!restoredRow) return prev
+      restoredTitle = pending.title?.trim() || restoredRow.title.trim() || treezDiscountId
+      return prev.filter((p) => p.treezDiscountId !== treezDiscountId)
+    })
+
+    if (!restoredRow) {
+      toast.error("Cannot restore this row", {
+        description: "No saved row snapshot. Re-import from live discounts if needed.",
+      })
+      return
+    }
+
+    setRows((prev) => {
+      if (prev.some((r) => r.id === restoredRow!.id)) return prev
+      return [...prev, recomputeRowMeta(restoredRow!)]
+    })
+    toast.success(`Restored "${restoredTitle}"`)
+  }, [])
 
   const confirmRemoveRow = () => {
     if (!rowPendingDelete) return
-    removeRow(rowPendingDelete)
+    const row = rows.find((r) => r.id === rowPendingDelete)
+    const label = row
+      ? row.title.trim() || row.customTitle.trim() || "Row"
+      : "Row"
+    const isExisting = row ? rowIsExistingInTreez(row) : false
+    const treezId = removeRow(rowPendingDelete)
     setRowPendingDelete(null)
+    if (isExisting && treezId) {
+      toast.message("Removed from draft", {
+        description: `"${label}" will be deleted from live when you publish.`,
+        action: {
+          label: "Undo",
+          onClick: () => restorePendingDelete(treezId),
+        },
+      })
+    }
   }
 
   const rowPendingDeleteLabel = React.useMemo(() => {
@@ -307,10 +371,19 @@ export function BulkDiscountBuilder({
     return label || null
   }, [rowPendingDelete, rows])
 
+  const rowPendingDeleteIsExisting = React.useMemo(() => {
+    if (!rowPendingDelete) return false
+    const row = rows.find((r) => r.id === rowPendingDelete)
+    return row ? rowIsExistingInTreez(row) : false
+  }, [rowPendingDelete, rows])
+
   const handleSaveDraft = async () => {
     setSavingDraft(true)
     try {
-      const payload = { title: draftTitle.trim() || "Untitled draft", rows: serializeBulkRows(rows) }
+      const payload = {
+        title: draftTitle.trim() || "Untitled draft",
+        rows: serializeDraftStorage(rows, pendingTreezDeletes),
+      }
       if (mode === "draft" && draftId) {
         const res = await fetch(`/api/discount-drafts/${draftId}`, {
           method: "PATCH",
@@ -350,18 +423,19 @@ export function BulkDiscountBuilder({
       const r = rows.find((x) => x.id === id)
       return r && rowEligibleForPublishSync(r)
     })
-    if (eligible.length === 0) {
+    if (eligible.length === 0 && pendingTreezDeletes.length === 0) {
       toast.error("No eligible rows to publish", {
         description:
           "Rows must be complete and valid. Live rows without a Treez id cannot be synced — re-import from live discounts.",
       })
       return
     }
-    const chunks = chunkArray(eligible, PUBLISH_CHUNK_SIZE)
-    setPublishProgress({ done: 0, total: eligible.length })
+    const chunks = eligible.length > 0 ? chunkArray(eligible, PUBLISH_CHUNK_SIZE) : [[]]
+    setPublishProgress({ done: 0, total: Math.max(eligible.length, 1) })
     setLoading(true)
     let created = 0
     let updated = 0
+    let deleted = 0
     let failed = 0
     let processed = 0
     try {
@@ -377,10 +451,11 @@ export function BulkDiscountBuilder({
         if (!res.ok) throw new Error(data.error || "Publish failed")
         created += typeof data.created === "number" ? data.created : 0
         updated += typeof data.updated === "number" ? data.updated : 0
+        deleted += typeof data.deleted === "number" ? data.deleted : 0
         const chunkResults = Array.isArray(data.results) ? data.results : []
         failed += chunkResults.filter((r: { ok: boolean }) => !r.ok).length
-        processed += chunk.length
-        setPublishProgress({ done: processed, total: eligible.length })
+        processed += chunk.length || (typeof data.deleted === "number" ? data.deleted : 0)
+        setPublishProgress({ done: processed, total: Math.max(eligible.length, 1) })
 
         if (data.draftRemoved) {
           toast.success(
@@ -395,7 +470,7 @@ export function BulkDiscountBuilder({
           cache: "no-store",
         })
         const d2 = await reload.json()
-        if (reload.ok && d2.draft?.rows) setRows(deserializeBulkRows(d2.draft.rows))
+        if (reload.ok && d2.draft?.rows) applyDraftFromStorage(d2.draft.rows)
         setPublishSelection((prev) => {
           const next = new Set(prev)
           for (const id of chunk) next.delete(id)
@@ -405,7 +480,7 @@ export function BulkDiscountBuilder({
         if (ci < chunks.length - 1) await sleep(PUBLISH_CHUNK_GAP_MS)
       }
       toast.success(
-        `Publish complete: ${created} created, ${updated} updated${failed ? `, ${failed} failed` : ""}.`,
+        `Publish complete: ${created} created, ${updated} updated${deleted ? `, ${deleted} deleted from live` : ""}${failed ? `, ${failed} failed` : ""}.`,
       )
       setPublishSelection(new Set())
     } catch (e) {
@@ -416,7 +491,7 @@ export function BulkDiscountBuilder({
           cache: "no-store",
         })
         const d2 = await reload.json()
-        if (reload.ok && d2.draft?.rows) setRows(deserializeBulkRows(d2.draft.rows))
+        if (reload.ok && d2.draft?.rows) applyDraftFromStorage(d2.draft.rows)
       } catch {
         /* ignore */
       }
@@ -440,16 +515,31 @@ export function BulkDiscountBuilder({
   const handlePublishAllEligible = async () => {
     if (mode !== "draft" || !draftId) return
     const eligibleIds = rows.filter(rowEligibleForPublishSync).map((r) => r.id)
-    if (eligibleIds.length === 0) {
+    if (eligibleIds.length === 0 && pendingTreezDeletes.length === 0) {
       toast.error("No eligible rows to publish", {
         description:
           "Rows must be complete and valid. Live rows without a Treez id cannot be synced — re-import from live discounts.",
       })
       return
     }
+    const deleteNote =
+      pendingTreezDeletes.length > 0
+        ? ` ${pendingTreezDeletes.length} removed live discount(s) will be deleted from Treez.`
+        : ""
+    if (eligibleIds.length === 0) {
+      if (
+        !window.confirm(
+          `Delete ${pendingTreezDeletes.length} live discount(s) from Treez that you removed from this draft?`,
+        )
+      ) {
+        return
+      }
+      await runPublishInChunks([])
+      return
+    }
     if (
       !window.confirm(
-        `Publish or sync ${eligibleIds.length} eligible discount(s) to Treez in batches of ${PUBLISH_CHUNK_SIZE}? Incomplete or legacy rows are skipped.`,
+        `Publish or sync ${eligibleIds.length} eligible discount(s) to Treez in batches of ${PUBLISH_CHUNK_SIZE}? Incomplete or legacy rows are skipped.${deleteNote}`,
       )
     ) {
       return
@@ -545,6 +635,7 @@ export function BulkDiscountBuilder({
       setStoreSearch(ss)
       setCollectionSearch(cs)
       setRows(mapped)
+      setPendingTreezDeletes([])
       setTablePage(1)
       setResults(null)
       setPublishSelection(new Set())
@@ -680,6 +771,44 @@ export function BulkDiscountBuilder({
                         Clear schedule
                       </Button>
                     </ActionTooltip>
+                  </div>
+                ) : null}
+                {mode === "draft" && pendingTreezDeletes.length > 0 ? (
+                  <div className="border-amber-500/25 bg-amber-500/10 w-full max-w-xl space-y-2 rounded-lg border px-3 py-2.5">
+                    <p className="text-xs leading-relaxed text-amber-900 dark:text-amber-200">
+                      {pendingTreezDeletes.length} removed live discount
+                      {pendingTreezDeletes.length === 1 ? "" : "s"} will be deleted from Treez when you
+                      publish. Save draft to keep this queued.
+                    </p>
+                    <ul className="space-y-1">
+                      {pendingTreezDeletes.map((pending) => {
+                        const canRestore = !!pending.row
+                        return (
+                          <li
+                            key={pending.treezDiscountId}
+                            className="flex items-center justify-between gap-2 text-xs"
+                          >
+                            <span className="min-w-0 truncate text-amber-950 dark:text-amber-100">
+                              {pending.title?.trim() || pending.treezDiscountId}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="link"
+                              className="h-auto shrink-0 px-0 text-xs font-semibold text-amber-950 underline-offset-2 hover:text-amber-950 dark:text-amber-100 dark:hover:text-amber-50"
+                              disabled={!canRestore || loading}
+                              title={
+                                canRestore
+                                  ? "Restore this row to the grid"
+                                  : "No snapshot saved — re-import from live discounts"
+                              }
+                              onClick={() => restorePendingDelete(pending.treezDiscountId)}
+                            >
+                              Restore
+                            </Button>
+                          </li>
+                        )
+                      })}
+                    </ul>
                   </div>
                 ) : null}
               </div>
@@ -1466,7 +1595,19 @@ export function BulkDiscountBuilder({
         }}
         title="Remove row?"
         description={
-          rowPendingDeleteLabel ? (
+          rowPendingDeleteIsExisting ? (
+            rowPendingDeleteLabel ? (
+              <>
+                Remove &ldquo;{rowPendingDeleteLabel}&rdquo; from this draft? It stays live in Treez until
+                you publish — then it will be deleted from live discounts. Save draft to keep this queued.
+              </>
+            ) : (
+              <>
+                Remove this existing live discount from the draft? It stays live until you publish — then
+                it will be deleted from Treez. Save draft to keep this queued.
+              </>
+            )
+          ) : rowPendingDeleteLabel ? (
             <>
               Remove &ldquo;{rowPendingDeleteLabel}&rdquo; from the grid? This cannot be undone unless you
               save a draft first.

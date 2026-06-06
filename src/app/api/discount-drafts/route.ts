@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { rejectIfManager } from "@/lib/auth/permissions"
 import { getCurrentProfile } from "@/lib/auth/profile"
 import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
+import { parseDraftStorage } from "@/lib/bulk-discount-io"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 import { tenantFilterOrClause } from "@/lib/tenant-data-scope"
 
@@ -42,10 +43,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const drafts = (data ?? []).map((d) => ({
-    ...d,
-    rowCount: Array.isArray(d.rows) ? d.rows.length : 0,
-  }))
+  const drafts = (data ?? []).map((d) => {
+    const parsed = parseDraftStorage(d.rows)
+    return {
+      ...d,
+      rowCount: parsed.rows.length,
+    }
+  })
 
   return NextResponse.json({ drafts, tenantKey })
 }

@@ -43,6 +43,19 @@ export type BulkDiscountRowStored = Omit<BulkDiscountRow, "startDate" | "endDate
   endDate: string | null
 }
 
+/** Live Treez discount queued for deletion when this draft is published. */
+export type PendingTreezDelete = {
+  treezDiscountId: string
+  title?: string
+  /** Row snapshot for undo before publish. */
+  row?: BulkDiscountRowStored
+}
+
+export type BulkDraftStorage = {
+  rows: BulkDiscountRowStored[]
+  pendingTreezDeletes?: PendingTreezDelete[]
+}
+
 export function serializeBulkRows(rows: BulkDiscountRow[]): BulkDiscountRowStored[] {
   return rows.map((row) => ({
     ...row,
@@ -219,4 +232,56 @@ export function deserializeBulkRows(raw: unknown): BulkDiscountRow[] {
     out.push(recomputeRowMeta(base))
   }
   return out.length > 0 ? out : [defaultEmptyRow()]
+}
+
+/** Supports legacy row arrays and `{ rows, pendingTreezDeletes }` objects. */
+export function parseDraftStorage(raw: unknown): {
+  rows: BulkDiscountRow[]
+  pendingTreezDeletes: PendingTreezDelete[]
+} {
+  if (Array.isArray(raw)) {
+    return { rows: deserializeBulkRows(raw), pendingTreezDeletes: [] }
+  }
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>
+    const pending: PendingTreezDelete[] = []
+    if (Array.isArray(o.pendingTreezDeletes)) {
+      for (const item of o.pendingTreezDeletes) {
+        if (!item || typeof item !== "object") continue
+        const t = item as Record<string, unknown>
+        const treezDiscountId =
+          typeof t.treezDiscountId === "string" ? t.treezDiscountId.trim() : ""
+        if (!treezDiscountId) continue
+        const rowSnapshot =
+          t.row && typeof t.row === "object" && !Array.isArray(t.row)
+            ? (t.row as BulkDiscountRowStored)
+            : undefined
+        pending.push({
+          treezDiscountId,
+          title: typeof t.title === "string" ? t.title : undefined,
+          row: rowSnapshot,
+        })
+      }
+    }
+    return {
+      rows: deserializeBulkRows(o.rows ?? []),
+      pendingTreezDeletes: pending,
+    }
+  }
+  return { rows: [defaultEmptyRow()], pendingTreezDeletes: [] }
+}
+
+export function serializeDraftStorage(
+  rows: BulkDiscountRow[],
+  pendingTreezDeletes: PendingTreezDelete[] = [],
+): BulkDiscountRowStored[] | BulkDraftStorage {
+  const serialized = serializeBulkRows(rows)
+  if (pendingTreezDeletes.length === 0) return serialized
+  return { rows: serialized, pendingTreezDeletes }
+}
+
+export function rowFromPendingDelete(pending: PendingTreezDelete): BulkDiscountRow | null {
+  if (!pending.row) return null
+  const rows = deserializeBulkRows([pending.row])
+  return rows[0] ?? null
 }

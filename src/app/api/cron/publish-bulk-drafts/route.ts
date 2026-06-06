@@ -12,10 +12,10 @@ import {
   snapshotForTreezPutBase,
 } from "@/lib/bulk-discount-treez-put"
 import {
-  deserializeBulkRows,
   isBulkDraftFullyPublished,
+  parseDraftStorage,
   recomputeRowMeta,
-  serializeBulkRows,
+  serializeDraftStorage,
   validateBulkRow,
 } from "@/lib/bulk-discount-io"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
@@ -95,7 +95,9 @@ export async function GET(request: Request) {
       continue
     }
 
-    let rows = deserializeBulkRows(d.rows)
+    const parsedDraft = parseDraftStorage(d.rows)
+    let rows = parsedDraft.rows
+    const pendingTreezDeletes = parsedDraft.pendingTreezDeletes
     rows = rows.map((r) => recomputeRowMeta(r))
     let changed = false
 
@@ -184,13 +186,13 @@ export async function GET(request: Request) {
       }
     }
 
-    if (isBulkDraftFullyPublished(rows)) {
+    if (isBulkDraftFullyPublished(rows) && pendingTreezDeletes.length === 0) {
       await admin.from("bulk_discount_drafts").delete().eq("id", d.id)
     } else if (changed) {
       await admin
         .from("bulk_discount_drafts")
         .update({
-          rows: serializeBulkRows(rows),
+          rows: serializeDraftStorage(rows, pendingTreezDeletes),
           updated_at: new Date().toISOString(),
         })
         .eq("id", d.id)

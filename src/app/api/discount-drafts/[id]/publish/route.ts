@@ -8,17 +8,21 @@ import {
   snapshotForTreezPutBase,
 } from "@/lib/bulk-discount-treez-put"
 import {
-  deserializeBulkRows,
   isBulkDraftFullyPublished,
+  parseDraftStorage,
   recomputeRowMeta,
-  serializeBulkRows,
+  serializeDraftStorage,
   validateBulkRow,
   type BulkDiscountRow,
 } from "@/lib/bulk-discount-io"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
 import { rowMatchesTenant } from "@/lib/tenant-data-scope"
-import { createServiceDiscount, updateServiceDiscount } from "@/lib/treez"
+import {
+  createServiceDiscount,
+  deleteServiceDiscountOrFallback,
+  updateServiceDiscount,
+} from "@/lib/treez"
 
 const BETWEEN_TREEZ_MS = 150
 
@@ -81,16 +85,20 @@ export async function POST(
     body = {}
   }
 
-  const filterIds =
-    Array.isArray(body.rowIds) && body.rowIds.length > 0
-      ? new Set(body.rowIds.filter((x): x is string => typeof x === "string"))
-      : null
+  const rowIdsRaw = body.rowIds
+  const filterIds = Array.isArray(rowIdsRaw)
+    ? rowIdsRaw.length > 0
+      ? new Set(rowIdsRaw.filter((x): x is string => typeof x === "string"))
+      : new Set<string>()
+    : null
 
-  let rows = deserializeBulkRows(draftRow.rows)
+  const parsedDraft = parseDraftStorage(draftRow.rows)
+  let rows = parsedDraft.rows
+  let pendingTreezDeletes = parsedDraft.pendingTreezDeletes
   rows = rows.map((r) => recomputeRowMeta(r))
 
-  type Op = "create" | "update"
-  const toProcess: { row: BulkDiscountRow; op: Op }[] = []
+  type Op = "create" | "update" | "delete"
+  const toProcess: { row: BulkDiscountRow; op: Exclude<Op, "delete"> }[] = []
   const skipped: { title: string; ok: false; error: string; op: "skip" }[] = []
 
   for (const row of rows) {
@@ -115,11 +123,19 @@ export async function POST(
     toProcess.push({ row, op: tid ? "update" : "create" })
   }
 
-  if (toProcess.length === 0) {
+  const liveRowTreezIds = new Set(
+    rows.map((r) => (r.treezDiscountId ?? "").trim()).filter(Boolean),
+  )
+  const deletesToProcess = pendingTreezDeletes.filter(
+    (p) => p.treezDiscountId && !liveRowTreezIds.has(p.treezDiscountId),
+  )
+
+  if (toProcess.length === 0 && deletesToProcess.length === 0) {
     return NextResponse.json(
       {
         error: "No eligible rows to publish (must be valid; legacy live rows need a Treez id to update).",
         published: 0,
+        deleted: 0,
         skipped,
       },
       { status: 400 },
@@ -135,9 +151,70 @@ export async function POST(
       { status: 500 },
     )
   }
-  // tenantKey resolved above; env matches active store cookie
 
   const results: { title: string; ok: boolean; error?: string; op: Op | "skip" }[] = [...skipped]
+  let remainingPendingDeletes = [...pendingTreezDeletes]
+
+  for (let i = 0; i < deletesToProcess.length; i++) {
+    if (i > 0) await delay(BETWEEN_TREEZ_MS)
+    const pending = deletesToProcess[i]!
+    const label = pending.title?.trim() || pending.treezDiscountId
+    try {
+      const { outcome } = await deleteServiceDiscountOrFallback(env, pending.treezDiscountId)
+      results.push({
+        title: label,
+        ok: true,
+        op: "delete",
+        error:
+          outcome === "deactivated"
+            ? "Deactivated in Treez (hard delete not permitted for this discount)."
+            : undefined,
+      })
+      remainingPendingDeletes = remainingPendingDeletes.filter(
+        (p) => p.treezDiscountId !== pending.treezDiscountId,
+      )
+    } catch (e) {
+      const err = e as Error & { message?: string }
+      const msg = err.message || "Delete failed"
+      results.push({ title: label, ok: false, error: msg, op: "delete" })
+    }
+  }
+
+  pendingTreezDeletes = remainingPendingDeletes
+
+  if (toProcess.length === 0) {
+    const { error: saveErr } = await admin
+      .from("bulk_discount_drafts")
+      .update({
+        rows: serializeDraftStorage(rows, pendingTreezDeletes),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", draftId)
+
+    if (saveErr) {
+      return NextResponse.json(
+        { error: saveErr.message, partialResults: results },
+        { status: 500 },
+      )
+    }
+
+    const okCount = results.filter((r) => r.ok).length
+    const deleted = results.filter((r) => r.ok && r.op === "delete").length
+    return NextResponse.json({
+      ok: true,
+      published: okCount,
+      created: 0,
+      updated: 0,
+      deleted,
+      total: results.length,
+      results,
+      draftRemoved: false,
+    })
+  }
+
+  if (toProcess.length > 0 && deletesToProcess.length > 0) {
+    await delay(BETWEEN_TREEZ_MS)
+  }
 
   for (let i = 0; i < toProcess.length; i++) {
     if (i > 0) await delay(BETWEEN_TREEZ_MS)
@@ -203,13 +280,14 @@ export async function POST(
     }
   }
 
-  const fullyPublished = isBulkDraftFullyPublished(rows)
+  const fullyPublished =
+    isBulkDraftFullyPublished(rows) && pendingTreezDeletes.length === 0
   const { error: saveErr } = fullyPublished
     ? await admin.from("bulk_discount_drafts").delete().eq("id", draftId)
     : await admin
         .from("bulk_discount_drafts")
         .update({
-          rows: serializeBulkRows(rows),
+          rows: serializeDraftStorage(rows, pendingTreezDeletes),
           updated_at: new Date().toISOString(),
         })
         .eq("id", draftId)
@@ -224,11 +302,13 @@ export async function POST(
   const okCount = results.filter((r) => r.ok).length
   const created = results.filter((r) => r.ok && r.op === "create").length
   const updated = results.filter((r) => r.ok && r.op === "update").length
+  const deleted = results.filter((r) => r.ok && r.op === "delete").length
   return NextResponse.json({
     ok: true,
     published: okCount,
     created,
     updated,
+    deleted,
     total: results.length,
     results,
     draftRemoved: fullyPublished,
