@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import { LeafIcon, SparklesIcon, StoreIcon } from "lucide-react"
+import { StoreIcon } from "lucide-react"
 
 export type StoreVisual = {
   initials: string
@@ -11,13 +11,13 @@ export type StoreVisual = {
 const KNOWN_STORES: Record<string, StoreVisual> = {
   jackpot: {
     initials: "JP",
-    Icon: SparklesIcon,
+    Icon: StoreIcon,
     bgClass: "bg-amber-500/15 ring-amber-500/25",
     iconClass: "text-amber-700 dark:text-amber-400",
   },
   metrocannabis: {
     initials: "MC",
-    Icon: LeafIcon,
+    Icon: StoreIcon,
     bgClass: "bg-emerald-500/15 ring-emerald-500/25",
     iconClass: "text-emerald-700 dark:text-emerald-400",
   },
@@ -31,7 +31,7 @@ function initialsFromLabel(label: string): string {
   return label.trim().slice(0, 2).toUpperCase() || "ST"
 }
 
-/** Distinct icon + color per known store; fallback for primary / custom tenants. */
+/** Uniform store icon with distinct color per known company; fallback for primary / custom tenants. */
 export function getStoreVisual(key: string, label: string): StoreVisual {
   const known = KNOWN_STORES[key.trim().toLowerCase()]
   if (known) return known

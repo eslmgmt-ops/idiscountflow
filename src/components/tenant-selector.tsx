@@ -120,7 +120,7 @@ export function TenantSelector({
           "inline-flex h-9 items-center gap-2 rounded-lg border border-border/80 bg-background px-2.5 shadow-sm",
           className,
         )}
-        title={`Store: ${selected.label}`}
+        title={`Company: ${selected.label}`}
       >
         <StoreBadge tenant={selected} />
       </div>
@@ -142,7 +142,7 @@ export function TenantSelector({
               "h-9 max-w-[min(100%,15rem)] gap-2 px-2.5 font-normal shadow-sm",
               className,
             )}
-            aria-label={`Current store: ${selected.label}. Open store switcher.`}
+            aria-label={`Current company: ${selected.label}. Open Switch Company.`}
           />
         }
       >
@@ -151,10 +151,10 @@ export function TenantSelector({
       <PopoverContent align="end" side="bottom" sideOffset={6} className="w-60 p-1.5">
         <PopoverHeader className="px-2 pb-1 pt-0.5">
           <PopoverTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Switch store
+            Switch Company
           </PopoverTitle>
         </PopoverHeader>
-        <ul className="flex flex-col gap-0.5" role="listbox" aria-label="Stores">
+        <ul className="flex flex-col gap-0.5" role="listbox" aria-label="Companies">
           {tenants.map((tenant) => {
             const isActive = tenant.key === activeKey
             return (
