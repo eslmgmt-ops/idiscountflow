@@ -246,14 +246,13 @@ function DiscountsSidebarNav({ pathname }: { pathname: string }) {
               drafts.map((draft) => (
                 <SidebarMenuSubItem key={draft.id}>
                   <SidebarMenuSubButton
-                    isActive={activeDraftId === draft.id}
                     size="sm"
                     render={
                       <Link href={`/dashboard/discounts/drafts/${draft.id}`} prefetch />
                     }
                     className={cn(
                       activeDraftId === draft.id &&
-                        "border-l-[3px] border-primary bg-primary/[0.08] !text-foreground hover:bg-primary/[0.11]",
+                        "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     )}
                   >
                     <span>{draft.title}</span>
