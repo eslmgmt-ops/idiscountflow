@@ -25,12 +25,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetFooter,
-} from "@/components/ui/sheet"
-import {
   AlignCenterIcon,
   AlignLeftIcon,
   AlignRightIcon,
@@ -50,29 +44,16 @@ import {
   Loader2Icon,
   PaletteIcon,
   RedoIcon,
-  Share2Icon,
   StrikethroughIcon,
   Table2Icon,
   UnderlineIcon,
   UndoIcon,
 } from "lucide-react"
 import { toast } from "sonner"
-import type { ProfileRow } from "@/lib/auth/types"
 import { cn } from "@/lib/utils"
 import { sanitizeRichPasteHtml } from "@/lib/tiptap-paste-html"
 
 const EMPTY_DOC: JSONContent = { type: "doc", content: [] }
-
-type ShareRow = {
-  user_id: string
-  created_at: string
-  profile: {
-    id: string
-    email: string | null
-    full_name: string | null
-    role: string
-  } | null
-}
 
 function isDocJson(v: unknown): v is JSONContent {
   return typeof v === "object" && v !== null && (v as JSONContent).type === "doc"
@@ -711,111 +692,12 @@ function SalesPromoEditor({
   )
 }
 
-function SharingPanel({
-  canManage,
-  users,
-  sharePick,
-  setSharePick,
-  shares,
-  onShare,
-  onRemove,
-}: {
-  canManage: boolean
-  users: ProfileRow[]
-  sharePick: string
-  setSharePick: (v: string) => void
-  shares: ShareRow[]
-  onShare: () => void
-  onRemove: (userId: string) => void
-}) {
-  if (!canManage) return null
-
-  return (
-    <div className="space-y-5">
-      <div className="space-y-2">
-        <h2 className="text-base font-semibold tracking-tight">Sharing</h2>
-        <p className="text-muted-foreground text-xs leading-relaxed">
-          Managers only see docs you share with them.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <div className="space-y-1.5">
-          <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
-            Add people
-          </span>
-          <select
-            className="border-border bg-background ring-offset-background focus-visible:border-ring placeholder:text-muted-foreground h-11 w-full rounded-lg border px-3 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-2"
-            value={sharePick}
-            onChange={(e) => setSharePick(e.target.value)}
-          >
-            <option value="">Select someone…</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {(u.full_name?.trim() || u.email || u.id).slice(0, 80)} ({u.role})
-              </option>
-            ))}
-          </select>
-        </div>
-        <Button
-          type="button"
-          variant="default"
-          size="default"
-          className="h-11 w-full font-semibold shadow-sm sm:w-auto sm:min-w-[7.5rem]"
-          disabled={!sharePick}
-          onClick={onShare}
-        >
-          Invite
-        </Button>
-      </div>
-
-      <div className="border-border/80 bg-muted/20 rounded-xl border p-3">
-        {shares.length ? (
-          <ul className="space-y-2 text-sm">
-            {shares.map((s) => (
-              <li
-                key={s.user_id}
-                className="border-border/60 flex items-center justify-between gap-3 rounded-lg border bg-background/60 px-3 py-2"
-              >
-                <span className="min-w-0 truncate">
-                  <span className="font-medium">
-                    {s.profile?.full_name?.trim() || s.profile?.email || s.user_id}
-                  </span>
-                  <span className="text-muted-foreground ml-2 text-xs">
-                    {(s.profile?.role ?? "").replaceAll("_", " ")}
-                  </span>
-                </span>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="xs"
-                  onClick={() => onRemove(s.user_id)}
-                >
-                  Remove
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="text-muted-foreground text-xs leading-relaxed">
-            This promo is visible to admins until you invite teammates.
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function PromoDocWorkspace({ docId }: { docId: string }) {
   const router = useRouter()
   const [title, setTitle] = React.useState("")
   const [docContent, setDocContent] = React.useState<JSONContent>(EMPTY_DOC)
   const [canManage, setCanManage] = React.useState(false)
-  const [shares, setShares] = React.useState<ShareRow[]>([])
-  const [users, setUsers] = React.useState<ProfileRow[]>([])
-  const [sharePick, setSharePick] = React.useState("")
   const [loading, setLoading] = React.useState(true)
-  const [mobileShareOpen, setMobileShareOpen] = React.useState(false)
   const [headerSave, setHeaderSave] = React.useState<
     "idle" | "saving" | "saved" | "error"
   >("idle")
@@ -834,7 +716,6 @@ function PromoDocWorkspace({ docId }: { docId: string }) {
           error?: string
           document?: { title: string; content?: unknown }
           canManage?: boolean
-          shares?: ShareRow[]
         }
         if (!res.ok || !data.ok || !data.document || cancelled) {
           toast.error(data.error ?? "Could not load this document")
@@ -843,12 +724,6 @@ function PromoDocWorkspace({ docId }: { docId: string }) {
         setTitle(data.document.title)
         setDocContent(normalizeDocContent(data.document.content))
         setCanManage(!!data.canManage)
-        setShares(Array.isArray(data.shares) ? data.shares : [])
-        if (data.canManage) {
-          const u = await fetch("/api/users", { credentials: "same-origin", cache: "no-store" })
-          const uj = (await u.json()) as { ok?: boolean; users?: ProfileRow[] }
-          if (uj.ok && uj.users && !cancelled) setUsers(uj.users ?? [])
-        }
       } catch {
         if (!cancelled) toast.error("Network error loading document")
       } finally {
@@ -885,61 +760,6 @@ function PromoDocWorkspace({ docId }: { docId: string }) {
     }
   }
 
-  async function shareNow() {
-    if (!sharePick) return
-    try {
-      const res = await fetch(`/api/sales-promo/documents/${docId}/share`, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: sharePick }),
-      })
-      const data = (await res.json()) as { ok?: boolean; error?: string }
-      if (!res.ok || !data.ok) {
-        toast.error(data.error ?? "Could not share")
-        return
-      }
-      toast.success("Shared")
-      setSharePick("")
-      const refreshed = await fetch(`/api/sales-promo/documents/${docId}`, {
-        credentials: "same-origin",
-        cache: "no-store",
-      })
-      const rj = (await refreshed.json()) as { ok?: boolean; shares?: ShareRow[] }
-      if (rj.ok) setShares(rj.shares ?? [])
-      setMobileShareOpen(false)
-    } catch {
-      toast.error("Network error")
-    }
-  }
-
-  async function removeShare(userId: string) {
-    try {
-      const res = await fetch(
-        `/api/sales-promo/documents/${docId}/share?user_id=${encodeURIComponent(userId)}`,
-        { method: "DELETE", credentials: "same-origin" },
-      )
-      const data = (await res.json()) as { ok?: boolean; error?: string }
-      if (!res.ok || !data.ok) {
-        toast.error(data.error ?? "Could not remove share")
-        return
-      }
-      setShares((s) => s.filter((row) => row.user_id !== userId))
-    } catch {
-      toast.error("Network error")
-    }
-  }
-
-  const sharePanelProps = {
-    canManage,
-    users,
-    sharePick,
-    setSharePick,
-    shares,
-    onShare: () => void shareNow(),
-    onRemove: (id: string) => void removeShare(id),
-  }
-
   return (
     <div className={cn("bg-muted/20 flex min-h-0 flex-1 flex-col")}>
       <header className="border-border/80 sticky top-0 z-30 shrink-0 border-b bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
@@ -968,44 +788,15 @@ function PromoDocWorkspace({ docId }: { docId: string }) {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 lg:justify-end">
-            {canManage ? (
-              <div className="xl:hidden">
-                <Sheet open={mobileShareOpen} onOpenChange={setMobileShareOpen}>
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    className="h-9 gap-2 px-4 font-semibold shadow-sm"
-                    onClick={() => setMobileShareOpen(true)}
-                  >
-                    <Share2Icon className="size-4" />
-                    Share
-                  </Button>
-                  <SheetContent side="right" className="w-[min(420px,100vw)] sm:max-w-md">
-                    <div className="px-2 pt-2 pb-1">
-                      <SharingPanel {...sharePanelProps} />
-                    </div>
-                    <SheetFooter className="pt-2">
-                      <SheetClose render={<Button type="button" variant="secondary" className="w-full" />}>
-                        Done
-                      </SheetClose>
-                    </SheetFooter>
-                  </SheetContent>
-                </Sheet>
-              </div>
-            ) : null}
-
-            <div className="flex items-center gap-2">
-              <div className="sm:hidden">
-                <SaveStatusChip status={headerSave} />
-              </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="flex items-center gap-2 sm:hidden">
+              <SaveStatusChip status={headerSave} />
             </div>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid min-h-0 w-full max-w-[1600px] flex-1 grid-cols-1 gap-0 xl:grid-cols-[1fr_320px]">
+      <div className="mx-auto grid min-h-0 w-full max-w-[1600px] flex-1 grid-cols-1 gap-0">
         <main className="min-h-0 overflow-y-auto px-3 py-4 sm:px-4 lg:px-6">
           <div className="border-border/80 bg-card mx-auto w-full max-w-[min(100%,1200px)] overflow-hidden rounded-xl border shadow-sm">
             {loading ? (
@@ -1023,12 +814,6 @@ function PromoDocWorkspace({ docId }: { docId: string }) {
             )}
           </div>
         </main>
-
-        {canManage ? (
-          <aside className="border-border/80 hidden min-h-0 overflow-y-auto border-t bg-background/60 px-4 py-5 xl:block xl:border-l xl:border-t-0">
-            <SharingPanel {...sharePanelProps} />
-          </aside>
-        ) : null}
       </div>
     </div>
   )
