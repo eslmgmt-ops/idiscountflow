@@ -68,6 +68,7 @@ export default function DiscountDraftsListPage() {
       setDrafts((prev) => prev.filter((d) => d.id !== id))
       toast.success("Draft deleted")
       setDraftPendingDelete(null)
+      window.dispatchEvent(new CustomEvent("bulk-drafts-changed"))
     } catch (e) {
       toast.error((e as Error).message)
     } finally {

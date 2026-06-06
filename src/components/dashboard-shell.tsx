@@ -9,6 +9,7 @@ import {
   FileStackIcon,
   HelpCircleIcon,
   LayoutGridIcon,
+  Loader2Icon,
   MegaphoneIcon,
   UsersIcon,
 } from "lucide-react"
@@ -34,6 +35,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
@@ -112,13 +116,6 @@ const MOBILE_NAV_MANAGER = [
   },
 ] as const
 
-function navLinkActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard") {
-    return pathname === "/dashboard" || pathname === "/dashboard/"
-  }
-  return pathname === href
-}
-
 function NavMenuItems({
   pathname,
   items,
@@ -144,6 +141,129 @@ function NavMenuItems({
           </SidebarMenuItem>
         )
       })}
+    </>
+  )
+}
+
+function navLinkActive(pathname: string, href: string): boolean {
+  if (href === "/dashboard") {
+    return pathname === "/dashboard" || pathname === "/dashboard/"
+  }
+  return pathname === href
+}
+
+type DraftSidebarItem = {
+  id: string
+  title: string
+}
+
+function DiscountsSidebarNav({ pathname }: { pathname: string }) {
+  const [drafts, setDrafts] = React.useState<DraftSidebarItem[]>([])
+  const [loadingDrafts, setLoadingDrafts] = React.useState(false)
+
+  const loadDrafts = React.useCallback(async () => {
+    setLoadingDrafts(true)
+    try {
+      const res = await fetch("/api/discount-drafts", {
+        credentials: "same-origin",
+        cache: "no-store",
+      })
+      const data = (await res.json()) as { ok?: boolean; drafts?: DraftSidebarItem[] }
+      if (res.ok && Array.isArray(data.drafts)) {
+        setDrafts(
+          data.drafts.map((d) => ({
+            id: d.id,
+            title: d.title?.trim() || "Untitled draft",
+          })),
+        )
+      } else {
+        setDrafts([])
+      }
+    } catch {
+      setDrafts([])
+    } finally {
+      setLoadingDrafts(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    void loadDrafts()
+  }, [loadDrafts, pathname])
+
+  React.useEffect(() => {
+    const onTenantChange = () => void loadDrafts()
+    const onDraftsChanged = () => void loadDrafts()
+    window.addEventListener("treez-tenant-changed", onTenantChange)
+    window.addEventListener("bulk-drafts-changed", onDraftsChanged)
+    return () => {
+      window.removeEventListener("treez-tenant-changed", onTenantChange)
+      window.removeEventListener("bulk-drafts-changed", onDraftsChanged)
+    }
+  }, [loadDrafts])
+
+  const activeDraftId = React.useMemo(() => {
+    const match = pathname.match(/^\/dashboard\/discounts\/drafts\/([^/]+)/)
+    return match?.[1] ?? null
+  }, [pathname])
+
+  const draftsListActive = pathname === "/dashboard/discounts/drafts"
+
+  return (
+    <>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          isActive={navLinkActive(pathname, "/dashboard")}
+          tooltip="Live discounts"
+          render={<Link href="/dashboard" />}
+          className={SIDEBAR_NAV_LINK_CLASS}
+        >
+          <LayoutGridIcon aria-hidden />
+          <span>Live discounts</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          isActive={draftsListActive}
+          tooltip="Draft Discounts"
+          render={<Link href="/dashboard/discounts/drafts" />}
+          className={SIDEBAR_NAV_LINK_CLASS}
+        >
+          <FileStackIcon aria-hidden />
+          <span>Draft Discounts</span>
+        </SidebarMenuButton>
+
+        {loadingDrafts || drafts.length > 0 ? (
+          <SidebarMenuSub className="max-h-56 overflow-y-auto">
+            {loadingDrafts ? (
+              <SidebarMenuSubItem>
+                <span className="text-muted-foreground flex items-center gap-2 px-2 py-1 text-xs">
+                  <Loader2Icon className="size-3 animate-spin" aria-hidden />
+                  Loading drafts…
+                </span>
+              </SidebarMenuSubItem>
+            ) : (
+              drafts.map((draft) => (
+                <SidebarMenuSubItem key={draft.id}>
+                  <SidebarMenuSubButton
+                    isActive={activeDraftId === draft.id}
+                    size="sm"
+                    render={
+                      <Link href={`/dashboard/discounts/drafts/${draft.id}`} prefetch />
+                    }
+                    className={cn(
+                      activeDraftId === draft.id &&
+                        "border-l-[3px] border-primary bg-primary/[0.08] !text-foreground hover:bg-primary/[0.11]",
+                    )}
+                  >
+                    <span>{draft.title}</span>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              ))
+            )}
+          </SidebarMenuSub>
+        ) : null}
+      </SidebarMenuItem>
     </>
   )
 }
@@ -204,9 +324,7 @@ export function DashboardShell({
 
   const collapseForBulk =
     pathname === "/dashboard/discounts/bulk-upload" ||
-    pathname.startsWith("/dashboard/discounts/bulk-upload/") ||
-    pathname === "/dashboard/discounts/drafts" ||
-    pathname.startsWith("/dashboard/discounts/drafts/")
+    pathname.startsWith("/dashboard/discounts/bulk-upload/")
 
   const [open, setOpen] = React.useState(!collapseForBulk)
 
@@ -307,7 +425,11 @@ function DashboardShellInner({
               <SidebarGroupLabel className={SECTION_LABEL_CLASS}>Discounts</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="gap-0.5">
-                  <NavMenuItems pathname={pathname} items={discountsNavItems} />
+                  {isManager ? (
+                    <NavMenuItems pathname={pathname} items={discountsNavItems} />
+                  ) : (
+                    <DiscountsSidebarNav pathname={pathname} />
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

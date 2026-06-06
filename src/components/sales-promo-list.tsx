@@ -14,6 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Loader2Icon, MegaphoneIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { useReloadOnTenantChange } from "@/lib/use-tenant-session"
 import { toast } from "sonner"
@@ -42,6 +43,9 @@ export function SalesPromoList() {
   const [newTitle, setNewTitle] = React.useState("")
   const [creating, setCreating] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [docPendingDelete, setDocPendingDelete] = React.useState<{ id: string; title: string } | null>(
+    null,
+  )
 
   const load = React.useCallback(async () => {
     setLoading(true)
@@ -115,9 +119,9 @@ export function SalesPromoList() {
     }
   }
 
-  async function deleteDoc(id: string, title: string) {
-    const ok = window.confirm(`Delete “${title}”? This cannot be undone.`)
-    if (!ok) return
+  async function confirmDeleteDoc() {
+    if (!docPendingDelete) return
+    const { id, title } = docPendingDelete
     setDeletingId(id)
     try {
       const res = await fetch(`/api/sales-promo/documents/${id}`, {
@@ -129,7 +133,8 @@ export function SalesPromoList() {
         toast.error(data.error ?? "Delete failed")
         return
       }
-      toast.success("Document deleted")
+      toast.success(`Deleted “${title}”`)
+      setDocPendingDelete(null)
       await load()
     } catch {
       toast.error("Network error")
@@ -222,7 +227,7 @@ export function SalesPromoList() {
                         type="button"
                         className="text-destructive hover:text-destructive"
                         disabled={deletingId === d.id}
-                        onClick={() => void deleteDoc(d.id, d.title)}
+                        onClick={() => setDocPendingDelete({ id: d.id, title: d.title })}
                       >
                         {deletingId === d.id ? (
                           <Loader2Icon className="size-3.5 animate-spin" />
@@ -273,6 +278,27 @@ export function SalesPromoList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={docPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && deletingId === null) setDocPendingDelete(null)
+        }}
+        title="Delete promo document?"
+        description={
+          docPendingDelete ? (
+            <>
+              Delete &ldquo;{docPendingDelete.title}&rdquo;? This permanently removes the document and
+              cannot be undone.
+            </>
+          ) : null
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        isWorking={deletingId !== null && docPendingDelete !== null}
+        onConfirm={() => void confirmDeleteDoc()}
+      />
     </div>
   )
 }

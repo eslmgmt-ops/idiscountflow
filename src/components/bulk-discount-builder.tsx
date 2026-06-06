@@ -105,6 +105,7 @@ export function BulkDiscountBuilder({
   const [loadingDraft, setLoadingDraft] = React.useState(mode === "draft")
   const [importingLive, setImportingLive] = React.useState(false)
   const [importLiveConfirmOpen, setImportLiveConfirmOpen] = React.useState(false)
+  const [rowPendingDelete, setRowPendingDelete] = React.useState<string | null>(null)
   const [publishSelection, setPublishSelection] = React.useState<Set<string>>(() => new Set())
   const [publishProgress, setPublishProgress] = React.useState<{ done: number; total: number } | null>(
     null,
@@ -292,6 +293,20 @@ export function BulkDiscountBuilder({
     setRows((prev) => prev.filter((row) => row.id !== id))
   }
 
+  const confirmRemoveRow = () => {
+    if (!rowPendingDelete) return
+    removeRow(rowPendingDelete)
+    setRowPendingDelete(null)
+  }
+
+  const rowPendingDeleteLabel = React.useMemo(() => {
+    if (!rowPendingDelete) return null
+    const row = rows.find((r) => r.id === rowPendingDelete)
+    if (!row) return null
+    const label = row.title.trim() || row.customTitle.trim()
+    return label || null
+  }, [rowPendingDelete, rows])
+
   const handleSaveDraft = async () => {
     setSavingDraft(true)
     try {
@@ -306,6 +321,7 @@ export function BulkDiscountBuilder({
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "Save failed")
         toast.success("Draft saved")
+        window.dispatchEvent(new CustomEvent("bulk-drafts-changed"))
       } else {
         const res = await fetch("/api/discount-drafts", {
           method: "POST",
@@ -316,6 +332,7 @@ export function BulkDiscountBuilder({
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "Save failed")
         toast.success("Draft saved")
+        window.dispatchEvent(new CustomEvent("bulk-drafts-changed"))
         const id = data.draft?.id as string | undefined
         if (id) router.push(`/dashboard/discounts/drafts/${id}`)
       }
@@ -844,7 +861,7 @@ export function BulkDiscountBuilder({
                               </TooltipContent>
                             </Tooltip>
                           </th>
-                          <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          <th className="w-[4.25rem] min-w-[4.25rem] max-w-[4.25rem] px-1 py-2 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
                             Row type
                           </th>
                         </>
@@ -898,26 +915,24 @@ export function BulkDiscountBuilder({
                                 aria-label="Select for publish"
                               />
                             </td>
-                            <td className="px-2 py-2 align-middle">
-                              <div className="flex flex-col gap-1">
-                                {rowIsExistingInTreez(row) ? (
-                                  <Badge variant="secondary" className="w-fit font-medium">
-                                    Existing
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="w-fit border-primary/25 font-medium text-foreground">
-                                    New
-                                  </Badge>
-                                )}
-                                {row.publishError ? (
-                                  <span
-                                    className="max-w-[8rem] truncate text-[10px] text-destructive"
-                                    title={row.publishError}
-                                  >
-                                    {row.publishError}
-                                  </span>
-                                ) : null}
-                              </div>
+                            <td className="w-[4.25rem] min-w-[4.25rem] max-w-[4.25rem] px-1 py-2 align-middle">
+                              {rowIsExistingInTreez(row) ? (
+                                <Badge
+                                  variant="secondary"
+                                  className="w-fit px-1.5 py-0 text-[10px] font-medium leading-5"
+                                  title={row.publishError ?? undefined}
+                                >
+                                  Existing
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="w-fit border-primary/25 px-1.5 py-0 text-[10px] font-medium leading-5 text-foreground"
+                                  title={row.publishError ?? undefined}
+                                >
+                                  New
+                                </Badge>
+                              )}
                             </td>
                           </>
                         ) : null}
@@ -1245,7 +1260,13 @@ export function BulkDiscountBuilder({
                         <td className="px-2 py-2">
                           <ActionTooltip label="Remove this row from the grid." side="left">
                             <Button
-                              onClick={() => removeRow(row.id)}
+                              onClick={() => {
+                                if (rows.length === 1) {
+                                  toast.error("You must have at least one row")
+                                  return
+                                }
+                                setRowPendingDelete(row.id)
+                              }}
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -1435,6 +1456,29 @@ export function BulkDiscountBuilder({
         cancelLabel="Cancel"
         variant="default"
         onConfirm={() => void handleImportLivePercentDiscounts()}
+      />
+
+      <ConfirmDialog
+        open={rowPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (open) return
+          setRowPendingDelete(null)
+        }}
+        title="Remove row?"
+        description={
+          rowPendingDeleteLabel ? (
+            <>
+              Remove &ldquo;{rowPendingDeleteLabel}&rdquo; from the grid? This cannot be undone unless you
+              save a draft first.
+            </>
+          ) : (
+            <>Remove this row from the grid? This cannot be undone unless you save a draft first.</>
+          )
+        }
+        confirmLabel="Remove row"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={confirmRemoveRow}
       />
     </DashboardShell>
   )

@@ -6,6 +6,7 @@ import type { AppRole, ProfileRow } from "@/lib/auth/types"
 import type { ProfileWithShares } from "@/lib/manager-promo-shares"
 import { Button } from "@/components/ui/button"
 import { ActionTooltip } from "@/components/action-tooltip"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -97,6 +98,7 @@ export function UsersManagement() {
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [userPendingDelete, setUserPendingDelete] = React.useState<ProfileWithShares | null>(null)
 
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -363,7 +365,6 @@ export function UsersManagement() {
   const handleDelete = async (row: ProfileWithShares) => {
     if (!me) return
     if (!canDeleteUser(me, row)) return
-    if (!confirm(`Remove access for ${row.email ?? row.id}?`)) return
     setDeletingId(row.id)
     try {
       const res = await fetch(`/api/users/${row.id}`, {
@@ -376,6 +377,7 @@ export function UsersManagement() {
         return
       }
       toast.success("User removed")
+      setUserPendingDelete(null)
       void load()
     } catch {
       toast.error("Delete failed")
@@ -673,7 +675,7 @@ export function UsersManagement() {
                               size="icon-sm"
                               className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                               disabled={deletingId === u.id}
-                              onClick={() => void handleDelete(u)}
+                              onClick={() => setUserPendingDelete(u)}
                             >
                               {deletingId === u.id ? (
                                 <Loader2Icon className="size-4 animate-spin" aria-hidden />
@@ -1205,6 +1207,32 @@ export function UsersManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={userPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && deletingId === null) setUserPendingDelete(null)
+        }}
+        title="Remove user?"
+        description={
+          userPendingDelete ? (
+            <>
+              Remove access for{" "}
+              <span className="font-medium text-foreground">
+                {userPendingDelete.email ?? userPendingDelete.id}
+              </span>
+              ? This permanently removes them from the workspace and cannot be undone.
+            </>
+          ) : null
+        }
+        confirmLabel="Remove user"
+        cancelLabel="Cancel"
+        variant="destructive"
+        isWorking={deletingId !== null && userPendingDelete !== null}
+        onConfirm={() => {
+          if (userPendingDelete) void handleDelete(userPendingDelete)
+        }}
+      />
     </div>
   )
 }
