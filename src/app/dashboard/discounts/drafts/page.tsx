@@ -7,7 +7,20 @@ import { DashboardShell } from "@/components/dashboard-shell"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { ActionTooltip } from "@/components/action-tooltip"
 import { Button } from "@/components/ui/button"
-import { ArrowLeftIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import {
+  ArrowLeftIcon,
+  DownloadIcon,
+  Loader2Icon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react"
+import { exportActivePercentDiscountsToBulkRows } from "@/lib/bulk-discount-from-treez"
+import {
+  type ProductCollection,
+  serializeDraftStorage,
+  type StoreEntity,
+} from "@/lib/bulk-discount-io"
 import { useReloadOnTenantChange } from "@/lib/use-tenant-session"
 import { toast } from "sonner"
 
@@ -24,6 +37,7 @@ export default function DiscountDraftsListPage() {
   const [loading, setLoading] = React.useState(true)
   const [drafts, setDrafts] = React.useState<DraftListItem[]>([])
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [importingDraft, setImportingDraft] = React.useState(false)
   const [draftPendingDelete, setDraftPendingDelete] = React.useState<{
     id: string
     title: string
@@ -53,6 +67,92 @@ export default function DiscountDraftsListPage() {
   useReloadOnTenantChange(() => {
     void loadDrafts()
   })
+
+  async function handleDraftImport() {
+    setImportingDraft(true)
+    try {
+      const [discountsRes, storesRes, collectionsRes] = await Promise.all([
+        fetch("/api/discounts", { credentials: "same-origin", cache: "no-store" }),
+        fetch("/api/stores", { credentials: "same-origin", cache: "no-store" }),
+        fetch("/api/collections", { credentials: "same-origin", cache: "no-store" }),
+      ])
+
+      const discountsData = await discountsRes.json()
+      if (!discountsData.ok) {
+        throw new Error(
+          typeof discountsData.error === "string"
+            ? discountsData.error
+            : "Failed to load discounts",
+        )
+      }
+
+      const storesData = storesRes.ok ? await storesRes.json() : null
+      const storesArray = storesData?.data || storesData?.entities || storesData
+      const stores: StoreEntity[] = Array.isArray(storesArray)
+        ? storesArray.map((s: Record<string, unknown>) => ({
+            id: String(
+              s.id ?? s.entityId ?? s.organizationEntityId ?? s,
+            ),
+            name: String(
+              s.name ??
+                s.displayName ??
+                s.entityName ??
+                s.organizationEntityName ??
+                s.id ??
+                s,
+            ),
+          }))
+        : []
+
+      const collectionsData = collectionsRes.ok ? await collectionsRes.json() : null
+      const collectionsArray =
+        collectionsData?.data || collectionsData?.collections || collectionsData
+      const collections: ProductCollection[] = Array.isArray(collectionsArray)
+        ? collectionsArray.map((c: Record<string, unknown>) => ({
+            id: String(c.id ?? c.collectionId ?? c.productCollectionId ?? c),
+            name: String(c.name ?? c.title ?? c.displayName ?? c.id ?? c),
+          }))
+        : []
+
+      const treezRows: Record<string, unknown>[] = Array.isArray(discountsData.rows)
+        ? discountsData.rows
+        : []
+      const mapped = exportActivePercentDiscountsToBulkRows(treezRows, stores, collections)
+      if (mapped.length === 0) {
+        toast.message("No active percent discounts found", {
+          description:
+            "Only isActive=true and method PERCENT discounts are imported, same as Import live %.",
+        })
+        return
+      }
+
+      const title = `Live import ${new Date().toLocaleDateString()}`
+      const res = await fetch("/api/discount-drafts", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          rows: serializeDraftStorage(mapped, []),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to create draft")
+
+      const id = data.draft?.id as string | undefined
+      if (!id) throw new Error("Draft created but no id returned")
+
+      toast.success(`Imported ${mapped.length} discount${mapped.length === 1 ? "" : "s"}`, {
+        description: "Opening draft editor…",
+      })
+      window.dispatchEvent(new CustomEvent("bulk-drafts-changed"))
+      router.push(`/dashboard/discounts/drafts/${id}`)
+    } catch (e) {
+      toast.error("Could not import discounts", { description: (e as Error).message })
+    } finally {
+      setImportingDraft(false)
+    }
+  }
 
   async function confirmDeleteDraft() {
     if (!draftPendingDelete) return
@@ -103,16 +203,42 @@ export default function DiscountDraftsListPage() {
               auto-publish day for all unpublished rows (cron).
             </p>
           </div>
-          <ActionTooltip label="Open a blank bulk sheet to build new discounts." side="top">
-            <Button
-              type="button"
-              className="gap-2 bg-[#1A1E26] text-white hover:bg-[#1A1E26]/90"
-              render={<Link href="/dashboard/discounts/bulk-upload" prefetch />}
+          <div className="flex flex-wrap gap-2">
+            <ActionTooltip label="Open a blank bulk sheet to build new discounts." side="top">
+              <Button
+                type="button"
+                className="gap-2 bg-[#1A1E26] text-white hover:bg-[#1A1E26]/90"
+                render={<Link href="/dashboard/discounts/bulk-upload" prefetch />}
+              >
+                <PlusIcon className="size-4" />
+                Draft blank
+              </Button>
+            </ActionTooltip>
+            <ActionTooltip
+              label="Create a new draft from all active percent discounts currently live in Treez."
+              side="top"
             >
-              <PlusIcon className="size-4" />
-              New bulk sheet
-            </Button>
-          </ActionTooltip>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                disabled={importingDraft}
+                onClick={() => void handleDraftImport()}
+              >
+                {importingDraft ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin" />
+                    Importing…
+                  </>
+                ) : (
+                  <>
+                    <DownloadIcon className="size-4" />
+                    Draft import
+                  </>
+                )}
+              </Button>
+            </ActionTooltip>
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
