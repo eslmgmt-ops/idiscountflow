@@ -48,7 +48,9 @@ import { ActionTooltip } from "@/components/action-tooltip"
 import { useReloadOnTenantChange } from "@/lib/use-tenant-session"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
-const TABLE_PAGE_SIZE = 10
+import { DEFAULT_TABLE_PAGE_SIZE, type TablePageSize } from "@/lib/table-pagination"
+import { TablePageSizeSelect } from "@/components/table-page-size-select"
+
 const PUBLISH_CHUNK_SIZE = 10
 const PUBLISH_CHUNK_GAP_MS = 450
 
@@ -115,6 +117,7 @@ export function BulkDiscountBuilder({
     null,
   )
   const [tablePage, setTablePage] = React.useState(1)
+  const [tablePageSize, setTablePageSize] = React.useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE)
   const [globalAutoPublishDate, setGlobalAutoPublishDate] = React.useState("")
 
   /** Which table popover is open — `${rowId}:${slot}` so pickers close after selection. */
@@ -236,23 +239,27 @@ export function BulkDiscountBuilder({
     const nr = defaultEmptyRow()
     setRows((prev) => {
       const next = [...prev, nr]
-      setTablePage(Math.max(1, Math.ceil(next.length / TABLE_PAGE_SIZE)))
+      setTablePage(Math.max(1, Math.ceil(next.length / tablePageSize)))
       return next
     })
     setStoreSearch({ ...storeSearch, [nr.id]: "" })
     setCollectionSearch({ ...collectionSearch, [nr.id]: "" })
   }
 
-  const totalTablePages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE))
+  const totalTablePages = Math.max(1, Math.ceil(rows.length / tablePageSize))
 
   React.useEffect(() => {
     setTablePage((p) => Math.min(p, totalTablePages))
   }, [totalTablePages])
 
+  React.useEffect(() => {
+    setTablePage(1)
+  }, [tablePageSize])
+
   const paginatedRows = React.useMemo(() => {
-    const start = (tablePage - 1) * TABLE_PAGE_SIZE
-    return rows.slice(start, start + TABLE_PAGE_SIZE)
-  }, [rows, tablePage])
+    const start = (tablePage - 1) * tablePageSize
+    return rows.slice(start, start + tablePageSize)
+  }, [rows, tablePage, tablePageSize])
 
   const applyGlobalAutoPublish = () => {
     if (!globalAutoPublishDate) {
@@ -692,8 +699,8 @@ export function BulkDiscountBuilder({
 
   const publishAllEligibleCount = eligiblePublishIdsAll.length
 
-  const tableRangeStart = rows.length === 0 ? 0 : (tablePage - 1) * TABLE_PAGE_SIZE + 1
-  const tableRangeEnd = Math.min(tablePage * TABLE_PAGE_SIZE, rows.length)
+  const tableRangeStart = rows.length === 0 ? 0 : (tablePage - 1) * tablePageSize + 1
+  const tableRangeEnd = Math.min(tablePage * tablePageSize, rows.length)
 
   return (
     <DashboardShell
@@ -1457,6 +1464,13 @@ export function BulkDiscountBuilder({
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  <TablePageSizeSelect
+                    value={tablePageSize}
+                    onChange={(next) => {
+                      setTablePageSize(next)
+                      setTablePage(1)
+                    }}
+                  />
                   {totalTablePages > 1 ? (
                     <div className="mr-1 flex items-center gap-1">
                       <ActionTooltip label="Previous page of rows." side="top">

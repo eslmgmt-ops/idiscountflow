@@ -41,11 +41,11 @@ import {
 } from "@/lib/discount-fields"
 import type { CollectionEntityDraft, StoreEntityDraft } from "@/lib/discount-edit-helpers"
 import { collectAllStoreNames, getProductCollectionDisplayLines, getStoreNamesFromRow } from "@/lib/discount-format"
+import { DEFAULT_TABLE_PAGE_SIZE, type TablePageSize } from "@/lib/table-pagination"
 import { cn } from "@/lib/utils"
+import { TablePageSizeSelect } from "@/components/table-page-size-select"
 import { SearchIcon, Trash2Icon, Edit2Icon, ChevronDownIcon } from "lucide-react"
 import { toast } from "sonner"
-
-const PAGE_SIZE = 12
 
 /** Temporarily hidden — set to `true` to show the month filter again. */
 const SHOW_LAST_UPDATED_MONTH_FILTER = false
@@ -295,6 +295,7 @@ export function DiscountManagerClient({
   }, [rowsProp, managerStoreAllowlist])
 
   const [page, setPage] = React.useState(1)
+  const [tablePageSize, setTablePageSize] = React.useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE)
 
   const [includeActive, setIncludeActive] = React.useState(true)
   const [includeInactive, setIncludeInactive] = React.useState(false)
@@ -472,11 +473,15 @@ export function DiscountManagerClient({
     selectedStores,
     scheduleScope,
     updatedMonthKey,
+    tablePageSize,
   ])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(filtered.length / tablePageSize))
   const pageClamped = Math.min(page, totalPages)
-  const pageRows = filtered.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE)
+  const pageRows = filtered.slice(
+    (pageClamped - 1) * tablePageSize,
+    pageClamped * tablePageSize,
+  )
 
   React.useEffect(() => {
     if (page !== pageClamped) setPage(pageClamped)
@@ -1135,12 +1140,19 @@ export function DiscountManagerClient({
       </div>
 
       <div className="flex flex-col items-stretch justify-between gap-3 border-t border-border/60 pt-2 sm:flex-row sm:items-center">
-        <p className="text-xs text-muted-foreground">
-          Page <span className="font-medium text-foreground">{pageClamped}</span> of{" "}
-          <span className="font-medium text-foreground">{totalPages}</span>
-          <span className="mx-2 text-border">·</span>
-          {PAGE_SIZE} per page
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-xs text-muted-foreground">
+            Page <span className="font-medium text-foreground">{pageClamped}</span> of{" "}
+            <span className="font-medium text-foreground">{totalPages}</span>
+          </p>
+          <TablePageSizeSelect
+            value={tablePageSize}
+            onChange={(next) => {
+              setTablePageSize(next)
+              setPage(1)
+            }}
+          />
+        </div>
         <div className="flex items-center justify-end gap-2">
           <ActionTooltip label="Go to the previous page of results." side="top">
             <Button
