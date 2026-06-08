@@ -90,7 +90,7 @@ function RegisterKBarActions({
     const all: Action[] = [
       {
         id: "nav-discounts",
-        name: "Live discounts",
+        name: "Live Discounts",
         subtitle: "Browse and filter percent discounts",
         section: "Navigation",
         keywords: "home dashboard discounts list live",

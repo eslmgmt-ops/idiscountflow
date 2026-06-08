@@ -59,7 +59,7 @@ const HELP_NAV = [
 ] as const
 
 const SIDEBAR_NAV = [
-  { href: "/dashboard", label: "Live discounts", icon: LayoutGridIcon },
+  { href: "/dashboard", label: "Live Discounts", icon: LayoutGridIcon },
   {
     href: "/dashboard/discounts/drafts",
     label: "Draft Discounts",
@@ -94,7 +94,7 @@ const SECTION_LABEL_CLASS =
 const MOBILE_NAV = [
   {
     href: "/dashboard",
-    label: "Live discounts",
+    label: "Live Discounts",
     shortLabel: "Home",
     icon: LayoutGridIcon,
   },
@@ -197,24 +197,25 @@ function DiscountsSidebarNav({ pathname }: { pathname: string }) {
   }, [pathname])
 
   const draftsListActive = pathname === "/dashboard/discounts/drafts"
+  const isDraftSection = pathname.startsWith("/dashboard/discounts/drafts")
 
   return (
     <>
       <SidebarMenuItem>
         <SidebarMenuButton
           isActive={navLinkActive(pathname, "/dashboard")}
-          tooltip="Live discounts"
+          tooltip="Live Discounts"
           render={<Link href="/dashboard" />}
           className={SIDEBAR_NAV_LINK_CLASS}
         >
           <LayoutGridIcon aria-hidden />
-          <span>Live discounts</span>
+          <span>Live Discounts</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
 
       <SidebarMenuItem>
         <SidebarMenuButton
-          isActive={draftsListActive}
+          isActive={draftsListActive || (!!activeDraftId && isDraftSection)}
           tooltip="Draft Discounts"
           render={<Link href="/dashboard/discounts/drafts" />}
           className={SIDEBAR_NAV_LINK_CLASS}
@@ -223,7 +224,7 @@ function DiscountsSidebarNav({ pathname }: { pathname: string }) {
           <span>Draft Discounts</span>
         </SidebarMenuButton>
 
-        {loadingDrafts || drafts.length > 0 ? (
+        {isDraftSection && (loadingDrafts || drafts.length > 0) ? (
           <SidebarMenuSub className="max-h-56 overflow-y-auto">
             {loadingDrafts ? (
               <SidebarMenuSubItem>
@@ -326,7 +327,7 @@ export function DashboardShell({
     }[] = [
       {
         href: "/dashboard",
-        label: "Live discounts",
+        label: "Live Discounts",
         shortLabel: "Home",
         icon: LayoutGridIcon,
       },
