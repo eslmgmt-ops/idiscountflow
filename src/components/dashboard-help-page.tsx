@@ -23,6 +23,7 @@ import {
   StoreIcon,
   Trash2Icon,
   UserCircleIcon,
+  UsersIcon,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -122,7 +123,7 @@ function MockSidebarNav({
         )}
       >
         <LayoutGridIcon className="size-3 shrink-0" />
-        <span>Live discounts</span>
+        <span>Live Discounts</span>
       </div>
       <div
         className={cn(
@@ -583,6 +584,41 @@ function ManagerHelpWorkflows({ hasSalesPromo }: { hasSalesPromo: boolean }) {
   )
 }
 
+function MockAdminSidebarNav({
+  active,
+}: {
+  active: "live" | "drafts" | "promo" | "users"
+}) {
+  const itemClass = (key: typeof active) =>
+    cn(
+      "mb-1 flex items-center gap-1.5 rounded-md px-1.5 py-1",
+      active === key && "bg-primary/[0.08] text-foreground",
+    )
+
+  return (
+    <div className="border-border/70 bg-sidebar/80 w-[7.5rem] shrink-0 rounded-lg border p-2 text-[9px] sm:w-[8.5rem] sm:text-[10px]">
+      <p className="text-muted-foreground mb-1.5 font-semibold tracking-widest uppercase">Discounts</p>
+      <div className={itemClass("live")}>
+        <LayoutGridIcon className="size-3 shrink-0" />
+        <span>Live Discounts</span>
+      </div>
+      <div className={itemClass("drafts")}>
+        <FileStackIcon className="size-3 shrink-0" />
+        <span>Draft Discounts</span>
+      </div>
+      <p className="text-muted-foreground mb-1.5 mt-2 font-semibold tracking-widest uppercase">Workspace</p>
+      <div className={itemClass("promo")}>
+        <MegaphoneIcon className="size-3 shrink-0" />
+        <span>Sales Promo</span>
+      </div>
+      <div className={itemClass("users")}>
+        <UsersIcon className="size-3 shrink-0" />
+        <span>Users</span>
+      </div>
+    </div>
+  )
+}
+
 function MockBulkToolbar({ variant }: { variant: "starter" | "draft" }) {
   if (variant === "starter") {
     return (
@@ -599,20 +635,16 @@ function MockBulkToolbar({ variant }: { variant: "starter" | "draft" }) {
   }
   return (
     <div className="mb-3 flex flex-wrap gap-1.5">
-      <span className="border-border/80 inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-[9px]">
-        <DownloadIcon className="size-3" />
-        Import live %
-      </span>
-      <span className="border-border/80 inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-[9px]">
-        <PlusIcon className="size-3" />
-        Add Row
-      </span>
       <span className="border-border/80 inline-flex h-7 items-center gap-1 rounded-md border border-dashed bg-background px-2 text-[9px]">
-        Save draft
-      </span>
-      <span className="inline-flex h-7 items-center gap-1 rounded-md bg-amber-600 px-2 text-[9px] text-white">
         <CheckIcon className="size-3" />
         Publish selected
+      </span>
+      <span className="border-amber-600/50 inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-[9px] text-amber-900">
+        <CheckIcon className="size-3" />
+        Publish all (299)
+      </span>
+      <span className="inline-flex h-7 items-center gap-1 rounded-md bg-amber-600 px-2 text-[9px] text-white">
+        Save draft
       </span>
     </div>
   )
@@ -835,7 +867,7 @@ export function DashboardHelpPage() {
             >
               <p>
                 In the sidebar under <strong>Discounts</strong>, choose{" "}
-                <strong>Live discounts</strong>. This lists active percent discounts from Treez for your
+                <strong>Live Discounts</strong>. This lists active percent discounts from Treez for your
                 selected store.
               </p>
             </WorkflowStep>
@@ -883,78 +915,52 @@ export function DashboardHelpPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-2">
               <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
-                Workflow B — Plan a new upcoming month (Draft Discounts)
+                Workflow B — Plan and publish with Draft Discounts
               </h3>
               <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                Use this to prepare next month&apos;s promos in a spreadsheet-style draft, import existing
-                offers, add or remove rows, then publish everything to Treez when you are ready.
+                Use Draft Discounts to prepare a month of promos from scratch or from what is already live.
+                Edit the grid, schedule auto-publish, or push to Treez manually whenever you are ready.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <GuideLink href="/dashboard/discounts/drafts">Draft Discounts</GuideLink>
-              <GuideLink href="/dashboard/discounts/bulk-upload" variant="outline">
-                New bulk sheet
-              </GuideLink>
-            </div>
+            <GuideLink href="/dashboard/discounts/drafts">Draft Discounts</GuideLink>
           </div>
 
           <ol className="space-y-10">
             <WorkflowStep
               step={1}
-              title="Go to Draft Discounts and start a new sheet"
+              title="Open Draft Discounts and choose how to start"
               mockup={
                 <AppMockup title="Draft Discounts list">
                   <div className="flex gap-3">
                     <MockSidebarNav active="drafts" />
                     <div className="min-w-0 flex-1 space-y-2">
                       <p className="text-[10px] font-semibold">Saved bulk drafts</p>
-                      <span className="bg-[#1A1E26] inline-flex h-7 items-center gap-1 rounded-md px-2 text-[9px] text-white">
-                        <PlusIcon className="size-3" />
-                        New bulk sheet
-                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="bg-[#1A1E26] inline-flex h-7 items-center gap-1 rounded-md px-2 text-[9px] text-white">
+                          <PlusIcon className="size-3" />
+                          Draft blank
+                        </span>
+                        <span className="border-border/80 inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-[9px]">
+                          <DownloadIcon className="size-3" />
+                          Draft import
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </AppMockup>
               }
             >
               <p>
-                Open <strong>Draft Discounts</strong> in the sidebar, then click{" "}
-                <strong>New bulk sheet</strong>. This opens the starter page where you name your draft and
-                build the first rows.
+                In the sidebar, open <strong>Draft Discounts</strong>. Choose{" "}
+                <strong>Draft blank</strong> for a fresh sheet of new discounts, or{" "}
+                <strong>Draft import</strong> to pull in all active percent discounts already live in Treez.
+                Import opens the draft editor immediately with every existing row loaded.
               </p>
             </WorkflowStep>
 
             <WorkflowStep
               step={2}
-              title="Name the draft and add starting rows"
-              mockup={
-                <AppMockup title="/dashboard/discounts/bulk-upload">
-                  <MockHeaderBar />
-                  <p className="mb-2 text-[11px] font-semibold">Import database</p>
-                  <div className="border-border/80 bg-muted/25 mb-3 rounded-lg border px-2 py-1.5 text-[9px] text-muted-foreground">
-                    Save as draft to manage everything — publish, import live, remove rows, and more happen
-                    in the draft editor.
-                  </div>
-                  <p className="text-muted-foreground mb-1 text-[9px]">Draft name</p>
-                  <span className="border-border/80 mb-3 inline-block w-full rounded-md border bg-background px-2 py-1 text-[10px]">
-                    July PROMOS
-                  </span>
-                  <MockBulkToolbar variant="starter" />
-                  <MockGridRow typeLabel="Fun Friday" />
-                </AppMockup>
-              }
-            >
-              <p>
-                Enter a <strong>Draft name</strong> (for example &quot;July PROMOS&quot;), use{" "}
-                <strong>Add Row</strong> to build your grid, then click <strong>Save draft</strong>. You are
-                taken to the full draft editor. Import live, delete, and publish are not on the starter page
-                — they open after you save.
-              </p>
-            </WorkflowStep>
-
-            <WorkflowStep
-              step={3}
-              title="Import live discounts into the draft"
+              title="Edit, add, remove, or restore rows"
               mockup={
                 <AppMockup title="/dashboard/discounts/drafts/[id]">
                   <div className="flex gap-3">
@@ -965,8 +971,13 @@ export function DashboardHelpPage() {
                       <MockBulkToolbar variant="draft" />
                       <div className="space-y-1">
                         <MockGridRow typeLabel="Custom" rowType="existing" />
-                        <MockGridRow typeLabel="Hotbox" rowType="existing" />
                         <MockGridRow typeLabel="Fun Friday" rowType="new" />
+                      </div>
+                      <div className="border-amber-500/25 bg-amber-500/10 mt-2 rounded-lg border px-2 py-1.5 text-[9px] text-amber-950">
+                        1 removed live discount will be deleted from Treez when you publish.
+                        <span className="ms-2 inline-flex rounded border border-amber-600/40 px-1.5 py-0.5 text-[8px] font-medium">
+                          Restore
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -974,85 +985,314 @@ export function DashboardHelpPage() {
               }
             >
               <p>
-                In the draft editor, click <strong>Import live %</strong> to load all active percent
-                discounts from Treez into the table. Imported rows show as{" "}
-                <strong>Existing</strong>; new rows you add show as <strong>New</strong>.
+                Change any cell, use <strong>Add Row</strong> at the bottom of the table for new promos, or
+                remove rows you no longer need. Imported rows show as <strong>Existing</strong>; rows you add
+                show as <strong>New</strong>. Removing an existing row queues it for deletion from live when
+                you publish — use <strong>Restore</strong> on the warning card if you change your mind. Click{" "}
+                <strong>Save draft</strong> often.
+              </p>
+            </WorkflowStep>
+
+            <WorkflowStep
+              step={3}
+              title="Apply a schedule or publish manually"
+              mockup={
+                <AppMockup title="Schedule and publish">
+                  <p className="text-muted-foreground mb-1 text-[9px]">Auto-publish (PST)</p>
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    <span className="border-border/80 inline-block rounded-md border bg-background px-2 py-1 text-[9px]">
+                      01-07-2026
+                    </span>
+                    <span className="border-border/80 inline-block rounded-md border bg-background px-2 py-1 text-[9px]">
+                      09:00
+                    </span>
+                    <span className="border-border/80 inline-flex h-6 items-center rounded-md border bg-background px-2 text-[8px]">
+                      Apply to draft
+                    </span>
+                  </div>
+                  <span className="border-amber-600/40 bg-amber-50 mb-3 inline-flex h-7 items-center rounded-md border px-2 text-[8px] text-amber-950">
+                    Auto-publish in 2d 5h 30m · Jul 1, 2026, 9:00 AM PST
+                  </span>
+                  <MockBulkToolbar variant="draft" />
+                </AppMockup>
+              }
+            >
+              <p>
+                Optionally set an <strong>Auto-publish (PST)</strong> date and time, then click{" "}
+                <strong>Apply to draft</strong>. A countdown badge appears until the scheduled moment. You can
+                still publish manually at any time with <strong>Publish selected</strong> or{" "}
+                <strong>Publish all</strong> — scheduling and manual publish work independently.
               </p>
             </WorkflowStep>
 
             <WorkflowStep
               step={4}
-              title="Edit, add, or remove rows — then save"
+              title="What happens when you publish"
               mockup={
-                <AppMockup title="Draft table actions">
-                  <MockBulkToolbar variant="draft" />
-                  <div className="space-y-1.5">
-                    <MockGridRow typeLabel="Fun Friday" rowType="existing" />
-                    <div className="border-amber-500/25 bg-amber-500/10 rounded-lg border px-2 py-1.5 text-[9px] text-amber-950">
-                      1 removed live discount will be deleted from Treez when you publish.
-                      <span className="ms-2 font-semibold underline">Restore</span>
-                    </div>
+                <AppMockup title="Publish outcomes">
+                  <div className="space-y-2 text-[10px] leading-relaxed">
+                    <p>
+                      <strong>Existing</strong> rows → update the same Treez discount.
+                    </p>
+                    <p>
+                      <strong>New</strong> rows → create new live discounts.
+                    </p>
+                    <p>
+                      <strong>Removed</strong> existing rows → deleted from live during publish.
+                    </p>
                   </div>
-                  <p className="text-muted-foreground mt-2 flex items-center gap-1 text-[9px]">
-                    <Trash2Icon className="text-destructive size-3" />
-                    Remove existing rows queues them for live delete on publish (with Undo).
-                  </p>
                 </AppMockup>
               }
             >
               <p>
-                Update any cell, <strong>Add Row</strong> for new promos, or remove rows you no longer need.
-                Removing an <strong>Existing</strong> row takes it out of the draft only until you publish —
-                then it is deleted from live. Use <strong>Undo</strong> or <strong>Restore</strong> if you
-                change your mind. Click <strong>Save draft</strong> often so your work is stored.
-              </p>
-            </WorkflowStep>
-
-            <WorkflowStep
-              step={5}
-              title="Publish when ready"
-              mockup={
-                <AppMockup title="Publish">
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="border-border/80 inline-flex h-7 items-center rounded-md border bg-background px-2 text-[9px]">
-                      Publish all (299)
-                    </span>
-                    <span className="inline-flex h-7 items-center rounded-md bg-amber-600 px-2 text-[9px] text-white">
-                      Publish selected
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground mt-3 text-[10px] leading-relaxed">
-                    <strong>Existing</strong> rows update the same Treez discount. <strong>New</strong> rows
-                    create new discounts. Queued removals delete from live during publish.
-                  </p>
-                </AppMockup>
-              }
-            >
-              <p>
-                When the draft is ready, use <strong>Publish selected</strong> or{" "}
-                <strong>Publish all</strong>. Existing rows update Treez; new rows are created; removed
-                existing rows are deleted from live. You can publish at any time — there is no requirement to
-                finish everything in one session.
+                Publishing syncs the draft to Treez in one pass. Rows tied to live discounts are updated;
+                brand-new rows are created; anything you removed from the draft (and did not restore) is
+                deleted from live. You can publish in batches or all at once — there is no need to finish in a
+                single session.
               </p>
             </WorkflowStep>
           </ol>
 
-          <Callout title="Quick reference">
+          <Callout title="Quick reference — Draft Discounts">
             <ul className="mt-2 list-disc space-y-1 ps-5 marker:text-primary/70">
               <li>
-                <strong>Live discounts</strong> — immediate edits and deletes in Treez.
+                <strong>Draft blank</strong> — empty grid for net-new promos.
               </li>
               <li>
-                <strong>New bulk sheet</strong> — start a draft; save to open the full editor.
+                <strong>Draft import</strong> — loads all live percent discounts into a new draft.
               </li>
               <li>
-                <strong>Draft editor</strong> — import live, edit grid, save, publish, auto-publish schedule.
+                <strong>Save draft</strong> — keeps your work on the server; open saved drafts from the sidebar.
+              </li>
+              <li>
+                <strong>Auto-publish (PST)</strong> — optional scheduled publish for unpublished rows.
               </li>
               <li>
                 <strong>Company switcher</strong> (header) — drafts and discounts are per store.
               </li>
             </ul>
           </Callout>
+        </section>
+
+        <section className="space-y-8 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
+                Workflow C — Sales Promo documents
+              </h3>
+              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                Create and maintain promo sheets for your team. Admins have full edit access; managers with
+                store assignments can view every promo for their company.
+              </p>
+            </div>
+            <GuideLink href="/dashboard/sales-promo">Open Sales Promo</GuideLink>
+          </div>
+
+          <AppMockup title="Sales Promo — admin">
+            <div className="flex gap-3">
+              <MockAdminSidebarNav active="promo" />
+              <div className="min-w-0 flex-1">
+                <MockHeaderBar />
+                <p className="mb-2 text-[10px] font-semibold">Sales Promo</p>
+                <span className="bg-[#1A1E26] mb-2 inline-flex h-7 items-center gap-1 rounded-md px-2 text-[9px] text-white">
+                  <PlusIcon className="size-3" />
+                  New document
+                </span>
+                <div className="space-y-1">
+                  <div className="border-border/70 rounded-lg border bg-background px-2 py-1.5 text-[9px] font-medium">
+                    July store flyer
+                  </div>
+                  <div className="border-border/70 rounded-lg border bg-background px-2 py-1.5 text-[9px] font-medium">
+                    Labor Day messaging
+                  </div>
+                </div>
+              </div>
+            </div>
+          </AppMockup>
+
+          <ol className="space-y-8">
+            <WorkflowStep
+              step={1}
+              title="Open Sales Promo and create a document"
+              mockup={
+                <AppMockup title="New promo document">
+                  <p className="mb-2 text-[10px] font-semibold">Create document</p>
+                  <span className="border-border/80 mb-2 inline-block w-full rounded-md border bg-background px-2 py-1 text-[9px]">
+                    July store flyer
+                  </span>
+                  <span className="bg-[#1A1E26] inline-flex h-7 items-center rounded-md px-2 text-[9px] text-white">
+                    Create
+                  </span>
+                </AppMockup>
+              }
+            >
+              <p>
+                Under <strong>Workspace → Sales Promo</strong>, click <strong>New document</strong>, name it,
+                and open the editor. Documents belong to the store selected in the header switcher.
+              </p>
+            </WorkflowStep>
+
+            <WorkflowStep
+              step={2}
+              title="Edit content as an admin"
+              mockup={
+                <AppMockup title="Promo editor">
+                  <div className="border-border/80 mb-2 flex gap-1 border-b px-1 py-1 text-[8px]">
+                    <span className="bg-muted rounded px-1.5 py-0.5">Bold</span>
+                    <span className="bg-muted rounded px-1.5 py-0.5">List</span>
+                    <span className="bg-muted rounded px-1.5 py-0.5">Image</span>
+                  </div>
+                  <div className="text-muted-foreground px-2 py-4 text-[9px]">Promo copy and layout…</div>
+                </AppMockup>
+              }
+            >
+              <p>
+                Admins can type, format, and upload images. Changes save to the shared document. Use the list
+                page to rename or delete documents you no longer need.
+              </p>
+            </WorkflowStep>
+
+            <WorkflowStep
+              step={3}
+              title="How managers access promo sheets"
+              mockup={
+                <AppMockup title="Manager view">
+                  <div className="flex gap-3">
+                    <MockManagerSidebarNav active="promo" hasSalesPromo />
+                    <div className="min-w-0 flex-1">
+                      <div className="border-border/80 bg-muted/30 mb-2 border-b px-2 py-1.5 text-[8px]">
+                        View only — ask an admin if changes are needed.
+                      </div>
+                      <div className="text-muted-foreground px-2 py-4 text-[9px]">Promo content…</div>
+                    </div>
+                  </div>
+                </AppMockup>
+              }
+            >
+              <p>
+                Managers do not need individual promo assignments. When a manager is assigned to a store, they
+                automatically see <strong>all</strong> Sales Promo documents for that company in read-only
+                mode. They cannot create, edit, or delete promo sheets.
+              </p>
+            </WorkflowStep>
+          </ol>
+        </section>
+
+        <section className="space-y-8 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
+                Workflow D — User provisioning
+              </h3>
+              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                Add administrators and managers, assign store access, and control who can edit versus view-only
+                in idiscountflow.
+              </p>
+            </div>
+            <GuideLink href="/dashboard/users">Open Users</GuideLink>
+          </div>
+
+          <AppMockup title="Users — admin">
+            <div className="flex gap-3">
+              <MockAdminSidebarNav active="users" />
+              <div className="min-w-0 flex-1">
+                <MockHeaderBar />
+                <p className="mb-2 text-[10px] font-semibold">Users</p>
+                <span className="bg-[#1A1E26] mb-2 inline-flex h-7 items-center gap-1 rounded-md px-2 text-[9px] text-white">
+                  <PlusIcon className="size-3" />
+                  Add user
+                </span>
+                <div className="space-y-1 text-[9px]">
+                  <div className="border-border/70 flex justify-between rounded-lg border bg-background px-2 py-1.5">
+                    <span>jane@company.com</span>
+                    <span className="text-muted-foreground">Admin</span>
+                  </div>
+                  <div className="border-border/70 flex justify-between rounded-lg border bg-background px-2 py-1.5">
+                    <span>manager@company.com</span>
+                    <span className="text-muted-foreground">Manager</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </AppMockup>
+
+          <ol className="space-y-8">
+            <WorkflowStep
+              step={1}
+              title="Create an admin or manager account"
+              mockup={
+                <AppMockup title="Add user">
+                  <div className="space-y-1.5 text-[9px]">
+                    <p className="text-muted-foreground">Email · password · role</p>
+                    <span className="border-border/80 inline-block w-full rounded-md border bg-background px-2 py-1">
+                      manager@company.com
+                    </span>
+                    <span className="border-border/80 inline-block rounded-md border bg-background px-2 py-1">
+                      Manager
+                    </span>
+                  </div>
+                </AppMockup>
+              }
+            >
+              <p>
+                On the <strong>Users</strong> page, click <strong>Add user</strong>. Choose{" "}
+                <strong>Admin</strong> for full access to discounts, drafts, promo editing, and user
+                management, or <strong>Manager</strong> for view-only discounts and promo reading.
+              </p>
+            </WorkflowStep>
+
+            <WorkflowStep
+              step={2}
+              title="Assign stores and locations (managers)"
+              mockup={
+                <AppMockup title="Manager assignments">
+                  <p className="mb-1 text-[9px] font-semibold">Stores</p>
+                  <div className="mb-2 space-y-1 text-[9px]">
+                    <div className="flex items-center gap-1.5">
+                      <span className="bg-primary size-2.5 rounded-sm" />
+                      <span>perfectunionsacns</span>
+                    </div>
+                  </div>
+                  <p className="mb-1 text-[9px] font-semibold">Store locations</p>
+                  <p className="text-muted-foreground text-[8px]">
+                    Sacramento, San Francisco, …
+                  </p>
+                </AppMockup>
+              }
+            >
+              <p>
+                For managers, select which <strong>stores</strong> (companies) and <strong>store
+                locations</strong> they may access. Live discounts are filtered to those locations. Sales Promo
+                access follows the same store assignment — managers see all promo documents for assigned
+                companies automatically. There is no per-document promo picker.
+              </p>
+            </WorkflowStep>
+
+            <WorkflowStep
+              step={3}
+              title="What each role can do"
+              mockup={
+                <AppMockup title="Role summary">
+                  <div className="space-y-2 text-[9px] leading-relaxed">
+                    <p>
+                      <strong>Admin</strong> — edit live discounts, draft discounts, publish to Treez, manage
+                      Sales Promo, provision users.
+                    </p>
+                    <p>
+                      <strong>Manager</strong> — view live discounts and read Sales Promo for assigned stores
+                      only.
+                    </p>
+                  </div>
+                </AppMockup>
+              }
+            >
+              <p>
+                Share the temporary password securely when creating an account. Managers can update their
+                profile details from <strong>My profile</strong> but cannot change their own store assignments
+                — an admin must edit the user record.
+              </p>
+            </WorkflowStep>
+          </ol>
         </section>
 
         <section className="rounded-2xl border border-dashed border-border/80 bg-muted/20 px-5 py-6 md:px-7">
