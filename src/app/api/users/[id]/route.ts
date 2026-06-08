@@ -5,9 +5,7 @@ import {
   rejectIfManager,
 } from "@/lib/auth/permissions"
 import { getCurrentProfile, getProfileForUser, normalizeProfileRow } from "@/lib/auth/profile"
-import { syncManagerPromoShares } from "@/lib/manager-promo-shares"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
-import { validateUuidList } from "@/lib/validate-promo-doc-ids"
 import { listTreezTenants } from "@/lib/treez-tenants"
 import {
   normalizeAndValidateManagerStoreNamesForTenants,
@@ -33,7 +31,6 @@ export async function PATCH(
   let body: {
     assigned_tenant_keys?: unknown
     assigned_store_names?: unknown
-    shared_sales_promo_document_ids?: unknown
     email?: unknown
     full_name?: unknown
     password?: unknown
@@ -117,11 +114,6 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: v.error }, { status: 400 })
   }
 
-  const promoParse = validateUuidList(body.shared_sales_promo_document_ids)
-  if (!promoParse.ok) {
-    return NextResponse.json({ ok: false, error: promoParse.error }, { status: 400 })
-  }
-
   const authPatch: {
     email?: string
     password?: string
@@ -172,15 +164,6 @@ export async function PATCH(
 
   if (upErr) {
     return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 })
-  }
-
-  try {
-    await syncManagerPromoShares(admin, targetId, promoParse.ids)
-  } catch (e) {
-    return NextResponse.json(
-      { ok: false, error: e instanceof Error ? e.message : "Could not update promo shares" },
-      { status: 500 },
-    )
   }
 
   const { data: fresh } = await admin

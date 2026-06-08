@@ -2,8 +2,6 @@ import { NextResponse } from "next/server"
 import { canCreateRole, rejectIfManager } from "@/lib/auth/permissions"
 import { getCurrentProfile, normalizeProfileRow } from "@/lib/auth/profile"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
-import { attachPromoShareIds, syncManagerPromoShares } from "@/lib/manager-promo-shares"
-import { validateUuidList } from "@/lib/validate-promo-doc-ids"
 import { listTreezTenants } from "@/lib/treez-tenants"
 import {
   normalizeAndValidateManagerStoreNamesForTenants,
@@ -59,12 +57,11 @@ export async function GET() {
   }
 
   const profiles = (rows ?? []).map((r) => normalizeProfileRow(r as Record<string, unknown>))
-  const withShares = await attachPromoShareIds(admin, profiles)
 
   return NextResponse.json({
     ok: true,
     me: actor,
-    users: withShares,
+    users: profiles,
   })
 }
 
@@ -83,7 +80,6 @@ export async function POST(request: Request) {
     role?: unknown
     assigned_tenant_keys?: unknown
     assigned_store_names?: unknown
-    shared_sales_promo_document_ids?: unknown
   }
   try {
     body = await request.json()
@@ -145,12 +141,6 @@ export async function POST(request: Request) {
     assignedNames = v.names
   }
 
-  const promoParse = validateUuidList(body.shared_sales_promo_document_ids)
-  if (!promoParse.ok) {
-    return NextResponse.json({ ok: false, error: promoParse.error }, { status: 400 })
-  }
-  const shareDocIds = targetRole === "manager" ? promoParse.ids : []
-
   let admin
   try {
     admin = createServiceRoleClient()
@@ -194,18 +184,6 @@ export async function POST(request: Request) {
       { ok: false, error: upErr.message },
       { status: 500 },
     )
-  }
-
-  if (targetRole === "manager" && shareDocIds.length) {
-    try {
-      await syncManagerPromoShares(admin, userId, shareDocIds)
-    } catch (e) {
-      await admin.auth.admin.deleteUser(userId)
-      return NextResponse.json(
-        { ok: false, error: e instanceof Error ? e.message : "Could not attach promo shares" },
-        { status: 500 },
-      )
-    }
   }
 
   return NextResponse.json({

@@ -3,7 +3,6 @@
 import * as React from "react"
 import { canConfigureManagerAccess, canCreateRole, canDeleteUser } from "@/lib/auth/permissions"
 import type { AppRole, ProfileRow } from "@/lib/auth/types"
-import type { ProfileWithShares } from "@/lib/manager-promo-shares"
 import { Button } from "@/components/ui/button"
 import { ActionTooltip } from "@/components/action-tooltip"
 import { ConfirmDialog } from "@/components/confirm-dialog"
@@ -68,7 +67,7 @@ type UsersApiPayload = {
   ok?: boolean
   error?: string
   me?: ProfileRow | null
-  users?: ProfileWithShares[]
+  users?: ProfileRow[]
 }
 
 function parseStoreNamesFromApiPayload(body: unknown): string[] {
@@ -91,14 +90,14 @@ function parseStoreNamesFromApiPayload(body: unknown): string[] {
 }
 
 export function UsersManagement() {
-  const [users, setUsers] = React.useState<ProfileWithShares[]>([])
+  const [users, setUsers] = React.useState<ProfileRow[]>([])
   const [me, setMe] = React.useState<ProfileRow | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [loadError, setLoadError] = React.useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
-  const [userPendingDelete, setUserPendingDelete] = React.useState<ProfileWithShares | null>(null)
+  const [userPendingDelete, setUserPendingDelete] = React.useState<ProfileRow | null>(null)
 
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -112,23 +111,16 @@ export function UsersManagement() {
   const [storesLoading, setStoresLoading] = React.useState(false)
   const [storeSearchCreate, setStoreSearchCreate] = React.useState("")
   const [storeSearchEdit, setStoreSearchEdit] = React.useState("")
-  const [promoDocs, setPromoDocs] = React.useState<{ id: string; title: string }[]>([])
-  const [promoLoading, setPromoLoading] = React.useState(false)
-  const [promoSearchCreate, setPromoSearchCreate] = React.useState("")
-  const [promoSearchEdit, setPromoSearchEdit] = React.useState("")
-
   const [createTenantSelected, setCreateTenantSelected] = React.useState<Set<string>>(() => new Set())
   const [createStoreSelected, setCreateStoreSelected] = React.useState<Set<string>>(() => new Set())
-  const [createPromoSelected, setCreatePromoSelected] = React.useState<Set<string>>(() => new Set())
 
   const [editOpen, setEditOpen] = React.useState(false)
-  const [editTarget, setEditTarget] = React.useState<ProfileWithShares | null>(null)
+  const [editTarget, setEditTarget] = React.useState<ProfileRow | null>(null)
   const [editEmail, setEditEmail] = React.useState("")
   const [editFullName, setEditFullName] = React.useState("")
   const [editPassword, setEditPassword] = React.useState("")
   const [editTenants, setEditTenants] = React.useState<Set<string>>(() => new Set())
   const [editStores, setEditStores] = React.useState<Set<string>>(() => new Set())
-  const [editPromos, setEditPromos] = React.useState<Set<string>>(() => new Set())
   const [editSaving, setEditSaving] = React.useState(false)
 
   const load = React.useCallback(async () => {
@@ -222,15 +214,11 @@ export function UsersManagement() {
   }, [])
 
   const loadCatalogs = React.useCallback(async () => {
-    setPromoLoading(true)
     try {
-      const [tenantsRes, promosRes] = await Promise.all([
-        fetch("/api/tenants", { credentials: "same-origin", cache: "no-store" }),
-        fetch("/api/sales-promo/documents?forAssignment=1", {
-          credentials: "same-origin",
-          cache: "no-store",
-        }),
-      ])
+      const tenantsRes = await fetch("/api/tenants", {
+        credentials: "same-origin",
+        cache: "no-store",
+      })
       if (tenantsRes.ok) {
         const tj = (await tenantsRes.json()) as {
           ok?: boolean
@@ -240,19 +228,8 @@ export function UsersManagement() {
           setConfiguredTenants(tj.allConfigured)
         }
       }
-      if (promosRes.ok) {
-        const pj = (await promosRes.json()) as {
-          ok?: boolean
-          documents?: { id: string; title: string }[]
-        }
-        if (pj.ok && Array.isArray(pj.documents)) {
-          setPromoDocs(pj.documents.map((d) => ({ id: d.id, title: d.title })))
-        }
-      }
     } catch {
-      toast.error("Could not load store or promo lists")
-    } finally {
-      setPromoLoading(false)
+      toast.error("Could not load store list")
     }
   }, [])
 
@@ -266,7 +243,6 @@ export function UsersManagement() {
     if (role !== "manager") {
       setCreateTenantSelected(new Set())
       setCreateStoreSelected(new Set())
-      setCreatePromoSelected(new Set())
     }
   }, [role])
 
@@ -298,9 +274,7 @@ export function UsersManagement() {
     setRole(first)
     setCreateTenantSelected(new Set())
     setCreateStoreSelected(new Set())
-    setCreatePromoSelected(new Set())
     setStoreSearchCreate("")
-    setPromoSearchCreate("")
     setDialogOpen(true)
   }
 
@@ -340,8 +314,6 @@ export function UsersManagement() {
             role === "manager" ? Array.from(createTenantSelected).sort((a, b) => a.localeCompare(b)) : undefined,
           assigned_store_names:
             role === "manager" ? Array.from(createStoreSelected).sort((a, b) => a.localeCompare(b)) : undefined,
-          shared_sales_promo_document_ids:
-            role === "manager" ? Array.from(createPromoSelected) : undefined,
         }),
       })
       const data = await res.json()
@@ -362,7 +334,7 @@ export function UsersManagement() {
     }
   }
 
-  const handleDelete = async (row: ProfileWithShares) => {
+  const handleDelete = async (row: ProfileRow) => {
     if (!me) return
     if (!canDeleteUser(me, row)) return
     setDeletingId(row.id)
@@ -386,7 +358,7 @@ export function UsersManagement() {
     }
   }
 
-  const openEditManager = (row: ProfileWithShares) => {
+  const openEditManager = (row: ProfileRow) => {
     if (!me || !canConfigureManagerAccess(me, row)) return
     setEditTarget(row)
     setEditEmail(row.email?.trim() ?? "")
@@ -394,9 +366,7 @@ export function UsersManagement() {
     setEditPassword("")
     setEditTenants(new Set(row.assigned_tenant_keys ?? []))
     setEditStores(new Set(row.assigned_store_names ?? []))
-    setEditPromos(new Set(row.shared_sales_promo_document_ids ?? []))
     setStoreSearchEdit("")
-    setPromoSearchEdit("")
     setEditOpen(true)
   }
 
@@ -431,7 +401,6 @@ export function UsersManagement() {
           password: editPassword,
           assigned_tenant_keys: Array.from(editTenants).sort((a, b) => a.localeCompare(b)),
           assigned_store_names: Array.from(editStores).sort((a, b) => a.localeCompare(b)),
-          shared_sales_promo_document_ids: Array.from(editPromos),
         }),
       })
       const data = (await res.json()) as { ok?: boolean; error?: string }
@@ -461,18 +430,6 @@ export function UsersManagement() {
     if (!q) return orgStoreNames
     return orgStoreNames.filter((n) => n.toLowerCase().includes(q))
   }, [orgStoreNames, storeSearchEdit])
-
-  const filteredPromosCreate = React.useMemo(() => {
-    const q = promoSearchCreate.trim().toLowerCase()
-    if (!q) return promoDocs
-    return promoDocs.filter((d) => d.title.toLowerCase().includes(q) || d.id.toLowerCase().includes(q))
-  }, [promoDocs, promoSearchCreate])
-
-  const filteredPromosEdit = React.useMemo(() => {
-    const q = promoSearchEdit.trim().toLowerCase()
-    if (!q) return promoDocs
-    return promoDocs.filter((d) => d.title.toLowerCase().includes(q) || d.id.toLowerCase().includes(q))
-  }, [promoDocs, promoSearchEdit])
 
   if (loading && me === null && !loadError) {
     return (
@@ -888,51 +845,10 @@ export function UsersManagement() {
                     )}
                   </ScrollArea>
                 </div>
-                <div className="space-y-2">
-                  <Label>Sales Promo access (optional)</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Managers can open shared documents in view-only mode from Sales Promo.
-                  </p>
-                  <div className="relative">
-                    <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      className="h-9 pl-9 text-sm"
-                      placeholder="Search documents…"
-                      value={promoSearchCreate}
-                      onChange={(e) => setPromoSearchCreate(e.target.value)}
-                      disabled={promoLoading}
-                    />
-                  </div>
-                  <ScrollArea className="h-36 rounded-md border border-border/80 p-2">
-                    {promoLoading ? (
-                      <p className="py-6 text-center text-xs text-muted-foreground">Loading documents…</p>
-                    ) : filteredPromosCreate.length === 0 ? (
-                      <p className="py-6 text-center text-xs text-muted-foreground">No documents</p>
-                    ) : (
-                      <div className="space-y-1 pr-2">
-                        {filteredPromosCreate.map((d) => (
-                          <label
-                            key={d.id}
-                            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/70"
-                          >
-                            <Checkbox
-                              checked={createPromoSelected.has(d.id)}
-                              onCheckedChange={(v) => {
-                                setCreatePromoSelected((prev) => {
-                                  const next = new Set(prev)
-                                  if (v === true) next.add(d.id)
-                                  else next.delete(d.id)
-                                  return next
-                                })
-                              }}
-                            />
-                            <span className="text-sm leading-tight">{d.title}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Managers automatically get view-only access to all Sales Promo documents for their assigned
+                  stores.
+                </p>
               </>
             ) : null}
           </div>
@@ -1140,49 +1056,10 @@ export function UsersManagement() {
                   )}
                 </ScrollArea>
               </div>
-              <div className="space-y-2">
-                <Label>Sales Promo access</Label>
-                <p className="text-xs text-muted-foreground">Choose which promo documents this manager may open.</p>
-                <div className="relative">
-                  <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    className="h-9 pl-9 text-sm"
-                    placeholder="Search documents…"
-                    value={promoSearchEdit}
-                    onChange={(e) => setPromoSearchEdit(e.target.value)}
-                    disabled={promoLoading}
-                  />
-                </div>
-                <ScrollArea className="h-36 rounded-md border border-border/80 p-2">
-                  {promoLoading ? (
-                    <p className="py-6 text-center text-xs text-muted-foreground">Loading documents…</p>
-                  ) : filteredPromosEdit.length === 0 ? (
-                    <p className="py-6 text-center text-xs text-muted-foreground">No documents</p>
-                  ) : (
-                    <div className="space-y-1 pr-2">
-                      {filteredPromosEdit.map((d) => (
-                        <label
-                          key={d.id}
-                          className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/70"
-                        >
-                          <Checkbox
-                            checked={editPromos.has(d.id)}
-                            onCheckedChange={(v) => {
-                              setEditPromos((prev) => {
-                                const next = new Set(prev)
-                                if (v === true) next.add(d.id)
-                                else next.delete(d.id)
-                                return next
-                              })
-                            }}
-                          />
-                          <span className="text-sm leading-tight">{d.title}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Sales Promo access follows store assignment — all promo documents for assigned stores are
+                available in view-only mode.
+              </p>
             </div>
           ) : null}
           <DialogFooter>

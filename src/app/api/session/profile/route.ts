@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { getCurrentProfile } from "@/lib/auth/profile"
 import type { SharedSalesPromoDoc } from "@/lib/manager-promo-shares"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
-import { tenantsForProfile } from "@/lib/treez-tenants"
+import { tenantFilterOrClause } from "@/lib/tenant-data-scope"
+import { tenantsForProfile, tenantKeysForProfile } from "@/lib/treez-tenants"
 
 /** Session profile for dashboard clients (includes manager store assignments). */
 export async function GET() {
@@ -15,23 +16,22 @@ export async function GET() {
   if (actor.role === "manager") {
     try {
       const admin = createServiceRoleClient()
-      const { data: shareRows } = await admin
-        .from("sales_promo_document_shares")
-        .select("document_id")
-        .eq("user_id", actor.id)
-      const ids = Array.from(
-        new Set((shareRows ?? []).map((r) => r.document_id as string).filter(Boolean)),
-      )
-      if (ids.length) {
+      const byId = new Map<string, SharedSalesPromoDoc>()
+      for (const key of tenantKeysForProfile(actor)) {
         const { data: docs } = await admin
           .from("sales_promo_documents")
           .select("id, title")
-          .in("id", ids)
+          .or(tenantFilterOrClause(key))
           .order("title", { ascending: true })
-        sharedSalesPromoDocuments = (docs ?? [])
-          .filter((d) => typeof d.id === "string" && typeof d.title === "string")
-          .map((d) => ({ id: d.id as string, title: d.title as string }))
+        for (const d of docs ?? []) {
+          if (typeof d.id === "string" && typeof d.title === "string") {
+            byId.set(d.id, { id: d.id, title: d.title })
+          }
+        }
       }
+      sharedSalesPromoDocuments = [...byId.values()].sort((a, b) =>
+        a.title.localeCompare(b.title),
+      )
     } catch {
       sharedSalesPromoDocuments = []
     }

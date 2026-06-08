@@ -2,10 +2,12 @@ import { NextResponse } from "next/server"
 import { canManageSalesPromo } from "@/lib/auth/permissions"
 import { getCurrentProfile } from "@/lib/auth/profile"
 import { resolveTreezTenantForRequest } from "@/lib/resolve-treez-tenant"
-import { isSalesPromoAdminRole } from "@/lib/sales-promo/access"
+import {
+  isSalesPromoAdminRole,
+  profileCanAccessSalesPromoTenant,
+} from "@/lib/sales-promo/access"
 import { createServiceRoleClient } from "@/lib/supabase/admin"
-import { tenantFilterOrClause, rowMatchesTenant } from "@/lib/tenant-data-scope"
-import { tenantKeysForProfile } from "@/lib/treez-tenants"
+import { tenantFilterOrClause } from "@/lib/tenant-data-scope"
 
 type DocumentRow = {
   id: string
@@ -89,9 +91,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
   }
 
-  const url = new URL(req.url)
-  const forAssignment = url.searchParams.get("forAssignment") === "1"
-
   let admin
   try {
     admin = createServiceRoleClient()
@@ -99,29 +98,6 @@ export async function GET(req: Request) {
     const msg =
       e instanceof Error ? e.message : "SUPABASE_SERVICE_ROLE_KEY is not configured"
     return NextResponse.json({ ok: false, error: msg }, { status: 500 })
-  }
-
-  if (forAssignment && isSalesPromoAdminRole(actor.role)) {
-    const keys = tenantKeysForProfile(actor)
-    const allDocs: DocumentRow[] = []
-    for (const key of keys) {
-      const { data, error } = await admin
-        .from("sales_promo_documents")
-        .select(DOC_SELECT)
-        .or(tenantFilterOrClause(key))
-        .order("updated_at", { ascending: false })
-      if (error) {
-        return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-      }
-      allDocs.push(...mapDocumentRows(data ?? []))
-    }
-    allDocs.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-    return NextResponse.json({
-      ok: true,
-      documents: allDocs,
-      canManage: true,
-      forAssignment: true,
-    })
   }
 
   let tenantKey: string
@@ -153,17 +129,7 @@ export async function GET(req: Request) {
     })
   }
 
-  const { data: shareRows, error: shareErr } = await admin
-    .from("sales_promo_document_shares")
-    .select("document_id")
-    .eq("user_id", actor.id)
-
-  if (shareErr) {
-    return NextResponse.json({ ok: false, error: shareErr.message }, { status: 500 })
-  }
-
-  const ids = Array.from(new Set((shareRows ?? []).map((r) => r.document_id as string)))
-  if (ids.length === 0) {
+  if (!profileCanAccessSalesPromoTenant(actor, tenantKey)) {
     return NextResponse.json({
       ok: true,
       documents: [] as DocumentRow[],
@@ -175,7 +141,6 @@ export async function GET(req: Request) {
   const { data, error } = await admin
     .from("sales_promo_documents")
     .select(DOC_SELECT)
-    .in("id", ids)
     .or(tenantFilterOrClause(tenantKey))
     .order("updated_at", { ascending: false })
 
@@ -183,13 +148,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
   }
 
-  const documents = mapDocumentRows(data ?? []).filter((d) =>
-    rowMatchesTenant(d.tenant_key, tenantKey),
-  )
-
   return NextResponse.json({
     ok: true,
-    documents,
+    documents: mapDocumentRows(data ?? []),
     canManage: false,
     tenantKey,
   })

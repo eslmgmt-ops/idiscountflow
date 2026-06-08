@@ -28,7 +28,7 @@ export function canDeleteUser(actor: ProfileRow, target: ProfileRow): boolean {
   return false
 }
 
-/** Admins may change which stores / promo shares belong to a manager account. */
+/** Admins may change which stores belong to a manager account. */
 export function canConfigureManagerAccess(actor: ProfileRow, target: ProfileRow): boolean {
   if (actor.role === "manager") return false
   if (target.role !== "manager") return false

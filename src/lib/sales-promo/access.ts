@@ -2,9 +2,17 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { AppRole } from "@/lib/auth/types"
 import type { ProfileRow } from "@/lib/auth/types"
 import { rowMatchesTenant } from "@/lib/tenant-data-scope"
+import { tenantKeysForProfile } from "@/lib/treez-tenants"
 
 export function isSalesPromoAdminRole(role: AppRole): boolean {
   return role === "master_admin" || role === "admin"
+}
+
+export function profileCanAccessSalesPromoTenant(
+  profile: ProfileRow,
+  tenantKey: string,
+): boolean {
+  return tenantKeysForProfile(profile).some((key) => rowMatchesTenant(tenantKey, key))
 }
 
 export async function userCanAccessSalesPromoDocument(
@@ -21,7 +29,9 @@ export async function userCanAccessSalesPromoDocument(
 
   if (error || !data) return false
 
-  if (activeTenantKey && !rowMatchesTenant(data.tenant_key as string | null, activeTenantKey)) {
+  const docTenantKey = data.tenant_key as string | null
+
+  if (activeTenantKey && !rowMatchesTenant(docTenantKey, activeTenantKey)) {
     return false
   }
 
@@ -31,13 +41,5 @@ export async function userCanAccessSalesPromoDocument(
 
   if (profile.role !== "manager") return false
 
-  const { data: share, error: shareErr } = await admin
-    .from("sales_promo_document_shares")
-    .select("document_id")
-    .eq("document_id", documentId)
-    .eq("user_id", profile.id)
-    .maybeSingle()
-
-  if (shareErr) return false
-  return !!share
+  return tenantKeysForProfile(profile).some((key) => rowMatchesTenant(docTenantKey, key))
 }

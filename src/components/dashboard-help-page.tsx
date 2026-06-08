@@ -695,7 +695,9 @@ export function DashboardHelpPage() {
         }
         if (!cancelled && j.ok && j.profile) {
           setProfile(j.profile)
-          setHasSalesPromo((j.sharedSalesPromoDocuments?.length ?? 0) > 0)
+          setHasSalesPromo(
+            j.profile.role === "manager" && (j.profile.assigned_tenant_keys?.length ?? 0) > 0,
+          )
         }
       } catch {
         /* non-fatal */

@@ -292,7 +292,9 @@ export function DashboardShell({
         }
         if (!cancelled && j.ok && j.profile) {
           setAccessProfile(j.profile)
-          setManagerHasSalesPromo((j.sharedSalesPromoDocuments?.length ?? 0) > 0)
+          setManagerHasSalesPromo(
+            j.profile.role === "manager" && (j.profile.assigned_tenant_keys?.length ?? 0) > 0,
+          )
         }
       } catch {
         /* non-fatal */

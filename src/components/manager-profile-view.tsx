@@ -175,7 +175,8 @@ export function ManagerProfileView() {
             </ul>
           ) : (
             <span className="text-muted-foreground">
-              No promo documents shared with you yet. An admin can share documents from the Users page.
+              No promo documents for your assigned stores yet. Documents appear here when an admin creates
+              them for your company.
             </span>
           )}
         </Field>
