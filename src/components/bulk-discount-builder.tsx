@@ -43,7 +43,9 @@ import {
 } from "@/lib/bulk-discount-io"
 import { buildTreezPayloadsFromBulkRows } from "@/lib/bulk-discount-payload"
 import { exportActivePercentDiscountsToBulkRows } from "@/lib/bulk-discount-from-treez"
+import { AutoPublishCountdownBadge } from "@/components/auto-publish-countdown-badge"
 import { ActionTooltip } from "@/components/action-tooltip"
+import { getUniformAutoPublishSchedule } from "@/lib/auto-publish-pst"
 import { useReloadOnTenantChange } from "@/lib/use-tenant-session"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -118,6 +120,8 @@ export function BulkDiscountBuilder({
   const [tablePage, setTablePage] = React.useState(1)
   const [tablePageSize, setTablePageSize] = React.useState<TablePageSize>(DEFAULT_TABLE_PAGE_SIZE)
   const [globalAutoPublishDate, setGlobalAutoPublishDate] = React.useState("")
+  const [globalAutoPublishTime, setGlobalAutoPublishTime] = React.useState("09:00")
+  const [autoPublishScheduleActive, setAutoPublishScheduleActive] = React.useState(false)
 
   /** Which table popover is open — `${rowId}:${slot}` so pickers close after selection. */
   const [openPopoverKey, setOpenPopoverKey] = React.useState<string | null>(null)
@@ -166,16 +170,16 @@ export function BulkDiscountBuilder({
         const loaded = parseDraftStorage(d.rows)
         setRows(loaded.rows)
         setPendingTreezDeletes(loaded.pendingTreezDeletes)
-        const unpublished = loaded.rows.filter((r) => !r.publishedAt)
-        const scheduleDates = [
-          ...new Set(
-            unpublished
-              .map((r) => r.scheduledPublishDate)
-              .filter((x): x is string => typeof x === "string" && x.length > 0),
-          ),
-        ]
-        if (scheduleDates.length === 1) setGlobalAutoPublishDate(scheduleDates[0])
-        else setGlobalAutoPublishDate("")
+        const uniformSchedule = getUniformAutoPublishSchedule(loaded.rows)
+        if (uniformSchedule) {
+          setGlobalAutoPublishDate(uniformSchedule.date)
+          setGlobalAutoPublishTime(uniformSchedule.time)
+          setAutoPublishScheduleActive(true)
+        } else {
+          setGlobalAutoPublishDate("")
+          setGlobalAutoPublishTime("09:00")
+          setAutoPublishScheduleActive(false)
+        }
       } catch (e) {
         toast.error("Could not load draft", { description: (e as Error).message })
       } finally {
@@ -265,23 +269,39 @@ export function BulkDiscountBuilder({
       toast.error("Choose an auto-publish date first")
       return
     }
+    if (!globalAutoPublishTime) {
+      toast.error("Choose an auto-publish time first")
+      return
+    }
+    const time = globalAutoPublishTime
     setRows((prev) =>
       prev.map((row) =>
         row.publishedAt
           ? row
-          : recomputeRowMeta({ ...row, scheduledPublishDate: globalAutoPublishDate }),
+          : recomputeRowMeta({
+              ...row,
+              scheduledPublishDate: globalAutoPublishDate,
+              scheduledPublishTime: time,
+            }),
       ),
     )
-    toast.success("Auto-publish date applied to all unpublished rows")
+    setAutoPublishScheduleActive(true)
+    toast.success("Auto-publish schedule applied (PST)")
   }
 
   const clearGlobalAutoPublish = () => {
     setGlobalAutoPublishDate("")
+    setGlobalAutoPublishTime("09:00")
+    setAutoPublishScheduleActive(false)
     setRows((prev) =>
       prev.map((row) =>
         row.publishedAt
           ? row
-          : recomputeRowMeta({ ...row, scheduledPublishDate: null }),
+          : recomputeRowMeta({
+              ...row,
+              scheduledPublishDate: null,
+              scheduledPublishTime: null,
+            }),
       ),
     )
     toast.message("Cleared auto-publish for unpublished rows")
@@ -764,41 +784,59 @@ export function BulkDiscountBuilder({
                   />
                 </div>
                 {mode === "draft" ? (
-                  <div className="flex flex-wrap items-end gap-2 border-border lg:border-l lg:pl-6">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Auto-publish
-                      </span>
-                      <Input
-                        type="date"
-                        value={globalAutoPublishDate}
-                        onChange={(e) => setGlobalAutoPublishDate(e.target.value)}
-                        className="h-9 w-[160px] text-sm"
-                      />
-                    </div>
-                    <ActionTooltip label="Set this UTC date on every unpublished row for the daily cron to publish automatically." side="top">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-9 gap-2"
-                        onClick={applyGlobalAutoPublish}
-                        disabled={loading || loadingData || !globalAutoPublishDate}
-                      >
-                        <CalendarIcon className="size-4" />
-                        Apply to draft
-                      </Button>
-                    </ActionTooltip>
-                    <ActionTooltip label="Remove scheduled auto-publish from all unpublished rows in this draft." side="top">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-9 text-muted-foreground"
-                        onClick={clearGlobalAutoPublish}
+                  <div className="border-border lg:border-l lg:pl-6">
+                    {autoPublishScheduleActive &&
+                    globalAutoPublishDate &&
+                    globalAutoPublishTime ? (
+                      <AutoPublishCountdownBadge
+                        dateYmd={globalAutoPublishDate}
+                        timeHm={globalAutoPublishTime}
+                        onCancel={clearGlobalAutoPublish}
                         disabled={loading || loadingData}
-                      >
-                        Clear schedule
-                      </Button>
-                    </ActionTooltip>
+                      />
+                    ) : (
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-medium text-muted-foreground">
+                            Auto-publish (PST)
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            <Input
+                              type="date"
+                              value={globalAutoPublishDate}
+                              onChange={(e) => setGlobalAutoPublishDate(e.target.value)}
+                              className="h-9 w-[160px] text-sm"
+                            />
+                            <Input
+                              type="time"
+                              value={globalAutoPublishTime}
+                              onChange={(e) => setGlobalAutoPublishTime(e.target.value)}
+                              className="h-9 w-[130px] text-sm"
+                            />
+                          </div>
+                        </div>
+                        <ActionTooltip
+                          label="Set this PST date and time on every unpublished row. Cron publishes when the countdown reaches zero."
+                          side="top"
+                        >
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-9 gap-2"
+                            onClick={applyGlobalAutoPublish}
+                            disabled={
+                              loading ||
+                              loadingData ||
+                              !globalAutoPublishDate ||
+                              !globalAutoPublishTime
+                            }
+                          >
+                            <CalendarIcon className="size-4" />
+                            Apply to draft
+                          </Button>
+                        </ActionTooltip>
+                      </div>
+                    )}
                   </div>
                 ) : null}
                 {mode === "draft" && pendingTreezDeletes.length > 0 ? (

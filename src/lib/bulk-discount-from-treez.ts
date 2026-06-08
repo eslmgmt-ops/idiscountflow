@@ -121,6 +121,7 @@ export function treezDiscountToBulkRow(
     selectedCollections,
     isValid: false,
     scheduledPublishDate: null,
+    scheduledPublishTime: null,
     publishedAt: null,
     publishError: null,
     treezDiscountId: treezId || null,

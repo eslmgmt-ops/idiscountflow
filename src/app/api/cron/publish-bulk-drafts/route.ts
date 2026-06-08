@@ -1,6 +1,6 @@
 /**
  * Intended for Vercel Cron or any scheduler: publishes bulk draft rows whose
- * `scheduledPublishDate` is today (UTC) and not yet published.
+ * `scheduledPublishDate` + `scheduledPublishTime` (PST/PDT) is due and not yet published.
  *
  * Set env CRON_SECRET and send: Authorization: Bearer <CRON_SECRET>
  */
@@ -21,6 +21,7 @@ import {
 import { createServiceRoleClient } from "@/lib/supabase/admin"
 import { getDefaultTenantKey, LEGACY_TENANT_KEY } from "@/lib/tenant-data-scope"
 import { getTreezEnvForTenant } from "@/lib/treez-tenants"
+import { isAutoPublishDue } from "@/lib/auto-publish-pst"
 import { createServiceDiscount, updateServiceDiscount } from "@/lib/treez"
 
 const BETWEEN_TREEZ_MS = 150
@@ -49,8 +50,6 @@ export async function GET(request: Request) {
       { status: 500 },
     )
   }
-
-  const today = new Date().toISOString().slice(0, 10)
 
   const { data: drafts, error: listErr } = await admin
     .from("bulk_discount_drafts")
@@ -103,7 +102,7 @@ export async function GET(request: Request) {
 
     for (const row of rows) {
       if (row.publishedAt) continue
-      if (!row.scheduledPublishDate || row.scheduledPublishDate > today) continue
+      if (!isAutoPublishDue(row.scheduledPublishDate, row.scheduledPublishTime)) continue
       const v = validateBulkRow(row)
       if (!v.isValid) {
         details.push({
@@ -201,7 +200,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    today,
     publishedRows: publishedCount,
     details,
   })

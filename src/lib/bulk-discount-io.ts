@@ -28,8 +28,10 @@ export interface BulkDiscountRow {
   selectedCollections: ProductCollection[]
   isValid: boolean
   validationError?: string
-  /** YYYY-MM-DD — auto-publish this row on that day (cron). */
+  /** YYYY-MM-DD — auto-publish this row on that day (PST/PDT wall clock). */
   scheduledPublishDate?: string | null
+  /** HH:mm (24h) in America/Los_Angeles — used with scheduledPublishDate. */
+  scheduledPublishTime?: string | null
   publishedAt?: string | null
   publishError?: string | null
   /** Treez discount id when row was imported from live data or after a successful create. */
@@ -216,6 +218,8 @@ export function deserializeBulkRows(raw: unknown): BulkDiscountRow[] {
       validationError: typeof r.validationError === "string" ? r.validationError : undefined,
       scheduledPublishDate:
         typeof r.scheduledPublishDate === "string" ? r.scheduledPublishDate : null,
+      scheduledPublishTime:
+        typeof r.scheduledPublishTime === "string" ? r.scheduledPublishTime : null,
       publishedAt: typeof r.publishedAt === "string" ? r.publishedAt : null,
       publishError: typeof r.publishError === "string" ? r.publishError : null,
       treezDiscountId:
