@@ -25,7 +25,7 @@ import {
   UserCircleIcon,
   UsersIcon,
 } from "lucide-react"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
@@ -1293,27 +1293,6 @@ export function DashboardHelpPage() {
               </p>
             </WorkflowStep>
           </ol>
-        </section>
-
-        <section className="rounded-2xl border border-dashed border-border/80 bg-muted/20 px-5 py-6 md:px-7">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">Need more detail?</h3>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Column-level reference and Sales Promo guides live in the extended documentation.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0 gap-1.5"
-              render={<Link href="/dashboard/how-to-use" />}
-            >
-              Extended guides
-              <ArrowUpRightIcon className="size-3.5" aria-hidden />
-            </Button>
-          </div>
         </section>
           </>
         )}
