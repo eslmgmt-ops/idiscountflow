@@ -22,7 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { DashboardKBar, DashboardKBarTrigger } from "@/components/dashboard-kbar"
+import { DashboardKBar } from "@/components/dashboard-kbar"
 import { TenantSelector } from "@/components/tenant-selector"
 import { useTenantSessionContext } from "@/components/tenant-session-provider"
 import {
@@ -539,7 +539,6 @@ function DashboardShellInner({
                 onChange={handleTenantChange}
               />
               {headerActions}
-              <DashboardKBarTrigger />
             </div>
           </header>
 

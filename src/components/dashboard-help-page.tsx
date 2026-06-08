@@ -29,7 +29,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 /** Support address — adjust the domain to match your mail host if needed. */
-export const SUPPORT_EMAIL = "aelran@mwgholdings.com"
+export const SUPPORT_EMAIL = "it@mwgholdings.com"
 
 const PAGE_MAX = "mx-auto w-full max-w-7xl px-4 md:px-6 lg:px-8"
 
